@@ -149,7 +149,7 @@ def find_criterion_results(criterion_dir: Path) -> Dict[str, List[dict]]:
 
 def main():
     script_dir = Path(__file__).resolve().parent
-    criterion_dir = script_dir / "loess-rs" / "target" / "criterion"
+    criterion_dir = script_dir / "fastLoess" / "target" / "criterion"
     output_dir = script_dir / "output"
     
     output_dir.mkdir(parents=True, exist_ok=True)
