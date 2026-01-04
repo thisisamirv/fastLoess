@@ -62,6 +62,7 @@ use loess_rs::internals::primitives::errors::LoessError;
 
 // Internal dependencies
 use crate::input::LoessInput;
+use crate::math::neighborhood::build_kdtree_parallel;
 
 // ============================================================================
 // Extended Batch LOESS Builder
@@ -254,19 +255,11 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Float + Debug + Send + Syn
             Backend::CPU => {
                 #[cfg(feature = "cpu")]
                 {
-                    if builder.parallel.unwrap_or(true) {
-                        builder.custom_smooth_pass = Some(smooth_pass_parallel);
-                        builder.custom_cv_pass = Some(cv_pass_parallel);
-                        builder.custom_interval_pass = Some(interval_pass_parallel);
-                        builder.custom_vertex_pass = Some(vertex_pass_parallel);
-                    } else {
-                        // Resets - though they are None by default
-                        // but explicitly clearing just in case
-                        builder.custom_smooth_pass = None;
-                        builder.custom_cv_pass = None;
-                        builder.custom_interval_pass = None;
-                        builder.custom_vertex_pass = None;
-                    }
+                    builder.custom_smooth_pass = Some(smooth_pass_parallel);
+                    builder.custom_cv_pass = Some(cv_pass_parallel);
+                    builder.custom_interval_pass = Some(interval_pass_parallel);
+                    builder.custom_vertex_pass = Some(vertex_pass_parallel);
+                    builder.custom_kdtree_builder = Some(build_kdtree_parallel);
                 }
                 #[cfg(not(feature = "cpu"))]
                 {

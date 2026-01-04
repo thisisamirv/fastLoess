@@ -102,8 +102,8 @@ where
 
             // Compute RMSE (approximate LOOCV using residuals)
             let mut sse = T::zero();
-            for i in 0..n {
-                let residual = y[i] - result.smoothed[i];
+            for (i, &y_val) in y.iter().enumerate().take(n) {
+                let residual = y_val - result.smoothed[i];
                 sse = sse + residual * residual;
             }
             (sse / T::from(n).unwrap()).sqrt()

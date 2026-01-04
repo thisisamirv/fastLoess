@@ -110,6 +110,9 @@ pub mod engine;
 /// Evaluation utilities (CV, intervals).
 pub mod evaluation;
 
+/// Mathematical utilities for parallel processing.
+pub mod math;
+
 /// High-level API with parallel support.
 pub mod api;
 
@@ -129,19 +132,19 @@ pub mod prelude {
     // Re-export our parallel adapters
     pub use crate::api::{
         Adapter::{Batch, Online, Streaming},
-        LoessError,
+        Loess, LoessBuilder, LoessError,
     };
 
     // Re-export the base types from loess-rs
     pub use loess_rs::prelude::{Average, TakeFirst, WeightedAverage};
     pub use loess_rs::prelude::{
         Bisquare, Biweight, Chebyshev, Constant, Cosine, Cubic, Direct, Epanechnikov, Euclidean,
-        Full, Gaussian, Huber, Incremental, Interpolation, Linear, Loess, Manhattan, Minkowski,
+        Full, Gaussian, Huber, Incremental, Interpolation, Linear, MAD, MAR, Manhattan, Minkowski,
         Normalized, Quadratic, Quartic, ReturnNone, ReturnOriginal, Talwar, Triangle, Tricube,
-        Uniform, UseLocalMean, Weighted, MAD, MAR,
+        Uniform, UseLocalMean, Weighted,
     };
     pub use loess_rs::prelude::{Extend, NoBoundary, Reflect, Zero};
-    pub use loess_rs::prelude::{KFold, LoessResult, LOOCV};
+    pub use loess_rs::prelude::{KFold, LOOCV, LoessResult};
 
     // Re-export ndarray for convenience
     #[cfg(feature = "cpu")]

@@ -20,7 +20,7 @@
 //!
 //! ### Configuration Flow
 //!
-//! 1. Create a [`LoessBuilder`] via `Loess::new()`.
+//! 1. Create a [`crate::api::LoessBuilder`] via `Loess::new()`.
 //! 2. Chain configuration methods (`.fraction()`, `.iterations()`, etc.).
 //! 3. Select an adapter via `.adapter(Batch)` to get a parallel execution builder.
 
@@ -40,7 +40,10 @@ use loess_rs::internals::api::Streaming as BaseStreaming;
 // Import the base adapter types
 use loess_rs::internals::algorithms::regression::SolverLinalg;
 use loess_rs::internals::api::LoessAdapter;
-use loess_rs::internals::api::LoessBuilder;
+pub use loess_rs::internals::api::LoessBuilder;
+
+/// Alias for `LoessBuilder` to provide a convenient entry point.
+pub type Loess<T> = LoessBuilder<T>;
 use loess_rs::internals::math::distance::DistanceLinalg;
 use loess_rs::internals::math::linalg::FloatLinalg;
 
