@@ -12,10 +12,12 @@
 //!
 //! Run with: `cargo bench`
 
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use fastLoess::api::Backend::{CPU, GPU};
 use fastLoess::prelude::*;
 use rand::prelude::*;
 use rand_distr::{Normal, Uniform};
+use std::env;
 use std::f64::consts::PI;
 use std::hint::black_box;
 
@@ -200,11 +202,24 @@ fn generate_3d_data(size: usize, seed: u64) -> (Vec<f64>, Vec<f64>) {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+fn get_config() -> (bool, bool, &'static str) {
+    match env::var("FASTLOESS_BACKEND").ok().as_deref() {
+        Some("gpu") | Some("GPU") => (true, true, "gpu"),
+        Some("cpu_serial") => (false, false, "cpu_serial"),
+        _ => (false, true, "cpu"),
+    }
+}
+
+// ============================================================================
 // Benchmark Functions
 // ============================================================================
 
 fn bench_scalability(c: &mut Criterion) {
-    let mut group = c.benchmark_group("scalability");
+    let (use_gpu, use_parallel, backend_name) = get_config();
+    let mut group = c.benchmark_group(format!("scalability_{}", backend_name));
     group.sample_size(50);
 
     for size in [1_000, 5_000, 10_000] {
@@ -221,6 +236,8 @@ fn bench_scalability(c: &mut Criterion) {
                     .scaling_method(MAR)
                     .surface_mode(Interpolation)
                     .adapter(Batch)
+                    .backend(if use_gpu { GPU } else { CPU })
+                    .parallel(use_parallel)
                     .build()
                     .unwrap()
                     .fit(black_box(&x), black_box(&y))
@@ -232,7 +249,8 @@ fn bench_scalability(c: &mut Criterion) {
 }
 
 fn bench_fraction(c: &mut Criterion) {
-    let mut group = c.benchmark_group("fraction");
+    let (use_gpu, use_parallel, backend_name) = get_config();
+    let mut group = c.benchmark_group(format!("fraction_{}", backend_name));
     group.sample_size(100);
 
     let size = 5000;
@@ -248,6 +266,8 @@ fn bench_fraction(c: &mut Criterion) {
                     .scaling_method(MAR)
                     .surface_mode(Interpolation)
                     .adapter(Batch)
+                    .backend(if use_gpu { GPU } else { CPU })
+                    .parallel(use_parallel)
                     .build()
                     .unwrap()
                     .fit(black_box(&x), black_box(&y))
@@ -259,7 +279,8 @@ fn bench_fraction(c: &mut Criterion) {
 }
 
 fn bench_iterations(c: &mut Criterion) {
-    let mut group = c.benchmark_group("iterations");
+    let (use_gpu, use_parallel, backend_name) = get_config();
+    let mut group = c.benchmark_group(format!("iterations_{}", backend_name));
     group.sample_size(100);
 
     let size = 5000;
@@ -275,6 +296,8 @@ fn bench_iterations(c: &mut Criterion) {
                     .scaling_method(MAR)
                     .surface_mode(Interpolation)
                     .adapter(Batch)
+                    .backend(if use_gpu { GPU } else { CPU })
+                    .parallel(use_parallel)
                     .build()
                     .unwrap()
                     .fit(black_box(&x), black_box(&y))
@@ -286,7 +309,8 @@ fn bench_iterations(c: &mut Criterion) {
 }
 
 fn bench_financial(c: &mut Criterion) {
-    let mut group = c.benchmark_group("financial");
+    let (use_gpu, use_parallel, backend_name) = get_config();
+    let mut group = c.benchmark_group(format!("financial_{}", backend_name));
     group.sample_size(100);
 
     for size in [500, 1000, 5000] {
@@ -301,6 +325,8 @@ fn bench_financial(c: &mut Criterion) {
                     .scaling_method(MAR)
                     .surface_mode(Interpolation)
                     .adapter(Batch)
+                    .backend(if use_gpu { GPU } else { CPU })
+                    .parallel(use_parallel)
                     .build()
                     .unwrap()
                     .fit(black_box(&x), black_box(&y))
@@ -312,7 +338,8 @@ fn bench_financial(c: &mut Criterion) {
 }
 
 fn bench_scientific(c: &mut Criterion) {
-    let mut group = c.benchmark_group("scientific");
+    let (use_gpu, use_parallel, backend_name) = get_config();
+    let mut group = c.benchmark_group(format!("scientific_{}", backend_name));
     group.sample_size(100);
 
     for size in [500, 1000, 5000] {
@@ -327,6 +354,8 @@ fn bench_scientific(c: &mut Criterion) {
                     .scaling_method(MAR)
                     .surface_mode(Interpolation)
                     .adapter(Batch)
+                    .backend(if use_gpu { GPU } else { CPU })
+                    .parallel(use_parallel)
                     .build()
                     .unwrap()
                     .fit(black_box(&x), black_box(&y))
@@ -338,7 +367,8 @@ fn bench_scientific(c: &mut Criterion) {
 }
 
 fn bench_genomic(c: &mut Criterion) {
-    let mut group = c.benchmark_group("genomic");
+    let (use_gpu, use_parallel, backend_name) = get_config();
+    let mut group = c.benchmark_group(format!("genomic_{}", backend_name));
     group.sample_size(50);
 
     for size in [1000, 5000] {
@@ -353,6 +383,8 @@ fn bench_genomic(c: &mut Criterion) {
                     .scaling_method(MAR)
                     .surface_mode(Interpolation)
                     .adapter(Batch)
+                    .backend(if use_gpu { GPU } else { CPU })
+                    .parallel(use_parallel)
                     .build()
                     .unwrap()
                     .fit(black_box(&x), black_box(&y))
@@ -364,7 +396,8 @@ fn bench_genomic(c: &mut Criterion) {
 }
 
 fn bench_pathological(c: &mut Criterion) {
-    let mut group = c.benchmark_group("pathological");
+    let (use_gpu, use_parallel, backend_name) = get_config();
+    let mut group = c.benchmark_group(format!("pathological_{}", backend_name));
     group.sample_size(50);
 
     let size = 5000;
@@ -380,6 +413,8 @@ fn bench_pathological(c: &mut Criterion) {
                 .scaling_method(MAR)
                 .surface_mode(Interpolation)
                 .adapter(Batch)
+                .backend(if use_gpu { GPU } else { CPU })
+                .parallel(use_parallel)
                 .build()
                 .unwrap()
                 .fit(black_box(&x_clustered), black_box(&y_clustered))
@@ -398,6 +433,8 @@ fn bench_pathological(c: &mut Criterion) {
                 .scaling_method(MAR)
                 .surface_mode(Interpolation)
                 .adapter(Batch)
+                .backend(if use_gpu { GPU } else { CPU })
+                .parallel(use_parallel)
                 .build()
                 .unwrap()
                 .fit(black_box(&x_noisy), black_box(&y_noisy))
@@ -416,6 +453,8 @@ fn bench_pathological(c: &mut Criterion) {
                 .scaling_method(MAR)
                 .surface_mode(Interpolation)
                 .adapter(Batch)
+                .backend(if use_gpu { GPU } else { CPU })
+                .parallel(use_parallel)
                 .build()
                 .unwrap()
                 .fit(black_box(&x_outlier), black_box(&y_outlier))
@@ -435,6 +474,8 @@ fn bench_pathological(c: &mut Criterion) {
                 .scaling_method(MAR)
                 .surface_mode(Interpolation)
                 .adapter(Batch)
+                .backend(if use_gpu { GPU } else { CPU })
+                .parallel(use_parallel)
                 .build()
                 .unwrap()
                 .fit(black_box(&x_const), black_box(&y_const))
@@ -446,7 +487,8 @@ fn bench_pathological(c: &mut Criterion) {
 }
 
 fn bench_polynomial_degrees(c: &mut Criterion) {
-    let mut group = c.benchmark_group("polynomial_degrees");
+    let (use_gpu, use_parallel, backend_name) = get_config();
+    let mut group = c.benchmark_group(format!("polynomial_degrees_{}", backend_name));
     group.sample_size(50);
 
     let size = 5000;
@@ -475,6 +517,8 @@ fn bench_polynomial_degrees(c: &mut Criterion) {
                     .scaling_method(MAR)
                     .surface_mode(Interpolation)
                     .adapter(Batch)
+                    .backend(if use_gpu { GPU } else { CPU })
+                    .parallel(use_parallel)
                     .build()
                     .unwrap()
                     .fit(black_box(&x), black_box(&y))
@@ -486,7 +530,8 @@ fn bench_polynomial_degrees(c: &mut Criterion) {
 }
 
 fn bench_dimensions(c: &mut Criterion) {
-    let mut group = c.benchmark_group("dimensions");
+    let (use_gpu, use_parallel, backend_name) = get_config();
+    let mut group = c.benchmark_group(format!("dimensions_{}", backend_name));
     group.sample_size(20);
 
     // 1D
@@ -501,6 +546,8 @@ fn bench_dimensions(c: &mut Criterion) {
                 .scaling_method(MAR)
                 .surface_mode(Interpolation)
                 .adapter(Batch)
+                .backend(if use_gpu { GPU } else { CPU })
+                .parallel(use_parallel)
                 .build()
                 .unwrap()
                 .fit(black_box(&x1), black_box(&y1))
@@ -519,6 +566,8 @@ fn bench_dimensions(c: &mut Criterion) {
                 .scaling_method(MAR)
                 .surface_mode(Interpolation)
                 .adapter(Batch)
+                .backend(if use_gpu { GPU } else { CPU })
+                .parallel(use_parallel)
                 .build()
                 .unwrap()
                 .fit(black_box(&x2), black_box(&y2))
@@ -537,6 +586,8 @@ fn bench_dimensions(c: &mut Criterion) {
                 .scaling_method(MAR)
                 .surface_mode(Interpolation)
                 .adapter(Batch)
+                .backend(if use_gpu { GPU } else { CPU })
+                .parallel(use_parallel)
                 .build()
                 .unwrap()
                 .fit(black_box(&x3), black_box(&y3))

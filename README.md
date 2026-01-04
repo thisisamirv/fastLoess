@@ -1,10 +1,10 @@
-# Loess Validation & Benchmarking Workspace
+# FastLoess Validation & Benchmarking Workspace
 
-This workspace is dedicated to validating the correctness and benchmarking the performance of the [loess-rs](https://github.com/thisisamirv/loess-rs) Rust crate against the reference R implementation (`loess`).
+This workspace is dedicated to validating the correctness and benchmarking the performance of the [fastLoess](https://github.com/thisisamirv/fastLoess) Rust crate against the reference Python implementation (`statsmodels`).
 
-It builds the `loess-rs` crate from the `develop` branch (git dependency) to ensure the latest changes are tested.
+It builds the `fastLoess` crate from the `develop` branch (git dependency) to ensure the latest changes are tested.
 
-## structure
+## Structure
 
 - `benchmarks/`: Performance benchmarking suite.
 - `validation/`: Correctness validation suite.
@@ -16,33 +16,41 @@ Benchmarks measure execution time across various scenarios (scalability, fractio
 ### 1. Run Rust Benchmarks (Criterion)
 
 ```bash
-cd benchmarks/loess-rs
+cd benchmarks/fastLoess
+
+# Run with CPU backend (Parallel - Default)
 cargo bench
+
+# Run with CPU Serial backend (no parallelism)
+FASTLOESS_BACKEND=cpu_serial cargo bench
 ```
 
-*Results are stored in `benchmarks/loess-rs/target/criterion/` with HTML reports.*
+*Results are stored in `benchmarks/fastLoess/target/criterion/` with HTML reports.*
 
-### 2. Convert Criterion Results to JSON
+### 2. Run R Benchmarks
+
+```bash
+cd benchmarks
+Rscript R/benchmark.R
+```
+
+*Output: `benchmarks/output/r_benchmark.json`*
+
+### 3. Convert Criterion Results to JSON
 
 ```bash
 cd benchmarks
 python3 convert_criterion.py
 ```
 
-*Output: `benchmarks/output/rust_benchmark.json`*
+*Output:*
 
-### 3. Run R Benchmarks
-
-```bash
-# from benchmarks directory
-Rscript R/benchmark.R
-```
-
-*Output: `benchmarks/output/r_benchmark.json`*
+- `benchmarks/output/rust_benchmark_cpu.json`
+- `benchmarks/output/rust_benchmark_cpu_serial.json`
 
 ### 4. Compare Benchmark Results
 
-Generate a comparison report showing speedups and regressions.
+Generate a consolidated comparison report showing speedups (Seq-Par range for CPU) and regressions.
 
 ```bash
 cd benchmarks
@@ -58,21 +66,20 @@ Validation ensures the Rust implementation produces results identical (or accept
 ### 1. Run Rust Validation
 
 ```bash
-cd validation/loess-rs
+cd validation/fastLoess
 cargo run --release
 ```
 
 *Output: `validation/output/rust_validate.json`*
 
-### 2. Run R Validation
+### 2. Run Statsmodels Validation
 
 ```bash
-# from the validation directory
-cd validation
-Rscript R/validate.R
+# from the root directory
+python3 validation/statsmodels/validate.py
 ```
 
-*Output: `validation/output/r/*.json`*
+*Output: `validation/output/statsmodels_validate.json`*
 
 ### 3. Compare Validation Results
 
@@ -88,5 +95,4 @@ python3 compare_validation.py
 ## Requirements
 
 - **Rust**: Latest stable.
-- **R**: Latest stable with standard packages (`stats`, `jsonlite`).
-- **Python**: 3.x with `numpy`, `scipy` (for comparison scripts).
+- **Python**: 3.x with `numpy`, `scipy`, `statsmodels`, `pytest` installed.
