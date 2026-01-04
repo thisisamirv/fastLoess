@@ -41,6 +41,7 @@ use loess_rs::internals::primitives::errors::LoessError;
 
 // Internal dependencies
 use crate::input::LoessInput;
+use crate::math::neighborhood::build_kdtree_parallel;
 
 // ============================================================================
 // Extended Streaming LOESS Builder
@@ -228,6 +229,7 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Float + Debug + Send + Syn
                     builder.custom_cv_pass = Some(cv_pass_parallel);
                     builder.custom_interval_pass = Some(interval_pass_parallel);
                     builder.custom_vertex_pass = Some(vertex_pass_parallel);
+                    builder.custom_kdtree_builder = Some(build_kdtree_parallel);
                 }
             }
 

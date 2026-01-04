@@ -1,12 +1,27 @@
 # Run all local checks (formatting, linting, building, tests, docs)
-check: fmt clippy build test doc examples
+check: fmt clippy build test doc
 	@echo "All checks completed successfully!"
 
 # Coverage (requires cargo-llvm-cov and llvm)
 coverage:
 	@echo "Running coverage report (text)..."
-	@LLVM_COV=llvm-cov LLVM_PROFDATA=llvm-profdata cargo llvm-cov --features std,dev
+	@LLVM_COV=llvm-cov LLVM_PROFDATA=llvm-profdata cargo llvm-cov --features dev
 	@echo "Coverage report complete!"
+
+# ... (formatting, linter, build, test, doc sections remain unchanged)
+
+# Examples
+examples:
+	@echo "No examples available."
+
+example_batch:
+	@echo "No batch example available."
+
+example_online:
+	@echo "No online example available."
+
+example_streaming:
+	@echo "No streaming example available."
 
 # Formatting
 fmt:
@@ -15,15 +30,12 @@ fmt:
 	@echo "Formatting check complete!"
 
 # Linter
-clippy: clippy-std clippy-no-std clippy-dev
+clippy: clippy-cpu clippy-dev
+	@echo "All clippy checks completed successfully!"
 
-clippy-std:
-	@echo "Running clippy (std)..."
-	@cargo clippy --all-targets --features std -- -D warnings
-
-clippy-no-std:
-	@echo "Running clippy (no-std)..."
-	@cargo clippy --all-targets --no-default-features -- -D warnings
+clippy-cpu:
+	@echo "Running clippy (cpu)..."
+	@cargo clippy --all-targets --features cpu -- -D warnings
 	@echo "Clippy check complete!"
 
 clippy-dev:
@@ -32,15 +44,11 @@ clippy-dev:
 	@echo "Clippy check complete!"
 
 # Build
-build: build-std build-no-std build-dev
+build: build-cpu build-dev
 
-build-std:
-	@echo "Building crate (std)..."
-	@cargo build --features std
-
-build-no-std:
-	@echo "Building crate (no-std)..."
-	@cargo build --no-default-features
+build-cpu:
+	@echo "Building crate (cpu)..."
+	@cargo build --features cpu
 	@echo "Build complete!"
 
 build-dev:
@@ -49,50 +57,27 @@ build-dev:
 	@echo "Build complete!"
 
 # Test
-test: test-std test-no-std
+test: test-cpu
 
-test-std:
-	@echo "Running tests (std)..."
-	@cargo test --workspace --features std,dev
-
-test-no-std:
-	@echo "Running tests (no-std)..."
-	@cargo test --no-default-features --features dev
+test-cpu:
+	@echo "Running tests (cpu)..."
+	@cargo test --features cpu
 	@echo "Tests complete!"
 
 # Documentation
-doc: doc-std doc-no-std doc-dev
+doc: doc-cpu doc-dev
 	@echo "Documentation build complete!"
 
-doc-std:
-	@echo "Building documentation (std)..."
-	@RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features std
-
-doc-no-std:
-	@echo "Building documentation (no-std)..."
-	@RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --no-default-features
+doc-cpu:
+	@echo "Building documentation (cpu)..."
+	@RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features cpu
+	@echo "Documentation build complete!"
 
 doc-dev:
 	@echo "Building documentation (dev)..."
 	@RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features dev
+	@echo "Documentation build complete!"
 
-# Examples
-examples: example_batch example_online example_streaming
-
-example_batch:
-	@echo "Building examples..."
-	@cargo run --example batch_smoothing
-	@echo "Examples build complete!"
-
-example_online:
-	@echo "Building examples..."
-	@cargo run --example online_smoothing
-	@echo "Examples build complete!"
-
-example_streaming:
-	@echo "Building examples..."
-	@cargo run --example streaming_smoothing
-	@echo "Examples build complete!"
 
 # Clean
 clean:

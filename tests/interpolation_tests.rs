@@ -4,7 +4,7 @@ use fastLoess::prelude::*;
 #[test]
 fn test_parallel_interpolation_mode() {
     let x: Vec<f64> = (0..100).map(|i| i as f64).collect();
-    let y: Vec<f64> = x.iter().map(|&v| (v as f64 * 0.1).sin()).collect();
+    let y: Vec<f64> = x.iter().map(|&v| (v * 0.1).sin()).collect();
 
     // 1. Fit with parallel interpolation
     let result_parallel = Loess::new()
