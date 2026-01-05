@@ -20,6 +20,10 @@
 //!   ↓
 //! Layer 4: Evaluation
 //!   ↓
+//! Layer 3: Algorithms (at loess-rs)
+//!   ↓
+//! Layer 2: Math
+//!   ↓
 //! loess-rs
 //! ```
 

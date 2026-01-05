@@ -11,6 +11,28 @@
 //! * **Strategy**: Processes data in fixed-size chunks with configurable overlap.
 //! * **Parallelism**: Adds parallel execution via `rayon` (fastLoess extension).
 //! * **Generics**: Generic over `Float` types.
+//!
+//! ## Key concepts
+//!
+//! * **Chunked Processing**: Divides stream into `chunk_size` pieces.
+//! * **Overlap**: Ensures smooth transitions, typically 2x window size.
+//! * **Merging**: Handles value conflicts in overlapping regions.
+//! * **Boundary Policies**: Handles edge effects at stream start/end.
+//!
+//! ## Invariants
+//!
+//! * Chunk size must be larger than overlap.
+//! * Overlap must be sufficient for local smoothing window.
+//! * values must be finite.
+//! * At least 2 points per chunk.
+//!
+//! ## Non-goals
+//!
+//! * This adapter does not support confidence/prediction intervals.
+//! * This adapter does not support cross-validation.
+//! * This adapter does not handle batch processing.
+//! * This adapter does not handle incremental updates.
+//! * This adapter requires chunks to be provided in stream order.
 
 // Feature-gated imports
 #[cfg(feature = "cpu")]
@@ -27,12 +49,15 @@ use std::result::Result;
 
 // Export dependencies from loess-rs crate
 use loess_rs::internals::adapters::streaming::{MergeStrategy, StreamingLoessBuilder};
+use loess_rs::internals::algorithms::regression::PolynomialDegree;
 use loess_rs::internals::algorithms::regression::SolverLinalg;
 use loess_rs::internals::algorithms::regression::ZeroWeightFallback;
 use loess_rs::internals::algorithms::robustness::RobustnessMethod;
+use loess_rs::internals::engine::executor::SurfaceMode;
 use loess_rs::internals::engine::output::LoessResult;
 use loess_rs::internals::math::boundary::BoundaryPolicy;
 use loess_rs::internals::math::distance::DistanceLinalg;
+use loess_rs::internals::math::distance::DistanceMetric;
 use loess_rs::internals::math::kernel::WeightFunction;
 use loess_rs::internals::math::linalg::FloatLinalg;
 use loess_rs::internals::math::scaling::ScalingMethod;
@@ -130,8 +155,44 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
         self
     }
 
+    /// Set the polynomial degree.
+    pub fn polynomial_degree(mut self, degree: PolynomialDegree) -> Self {
+        self.base.polynomial_degree = degree;
+        self
+    }
+
+    /// Set the number of dimensions explicitly.
+    pub fn dimensions(mut self, dims: usize) -> Self {
+        self.base.dimensions = dims;
+        self
+    }
+
+    /// Set the distance metric.
+    pub fn distance_metric(mut self, metric: DistanceMetric<T>) -> Self {
+        self.base.distance_metric = metric;
+        self
+    }
+
+    /// Set the surface evaluation mode (Direct or Interpolation).
+    pub fn surface_mode(mut self, mode: SurfaceMode) -> Self {
+        self.base.surface_mode = mode;
+        self
+    }
+
+    /// Set the cell size for interpolation mode.
+    pub fn cell(mut self, cell: f64) -> Self {
+        self.base.cell = Some(cell);
+        self
+    }
+
+    /// Set the maximum number of vertices for interpolation.
+    pub fn interpolation_vertices(mut self, vertices: usize) -> Self {
+        self.base.interpolation_vertices = Some(vertices);
+        self
+    }
+
     /// Enable auto-convergence for robustness iterations.
-    pub fn auto_converge(mut self, tolerance: T) -> Self {
+    pub fn auto_convergence(mut self, tolerance: T) -> Self {
         self.base.auto_convergence = Some(tolerance);
         self
     }
@@ -152,6 +213,12 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
     // Streaming-Specific Setters
     // ========================================================================
 
+    /// Enable returning diagnostics in the result.
+    pub fn return_diagnostics(mut self, enabled: bool) -> Self {
+        self.base.return_diagnostics = enabled;
+        self
+    }
+
     /// Set chunk size for processing.
     pub fn chunk_size(mut self, size: usize) -> Self {
         self.base.chunk_size = size;
@@ -167,12 +234,6 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
     /// Set the merge strategy for overlapping chunks.
     pub fn merge_strategy(mut self, strategy: MergeStrategy) -> Self {
         self.base.merge_strategy = strategy;
-        self
-    }
-
-    /// Enable returning diagnostics in the result.
-    pub fn return_diagnostics(mut self, enabled: bool) -> Self {
-        self.base.return_diagnostics = enabled;
         self
     }
 

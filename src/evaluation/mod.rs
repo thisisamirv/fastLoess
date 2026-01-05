@@ -16,6 +16,10 @@
 //!   ↓
 //! Layer 4: Evaluation ← You are here
 //!   ↓
+//! Layer 3: Algorithms (at loess-rs)
+//!   ↓
+//! Layer 2: Math
+//!   ↓
 //! loess-rs
 //! ```
 

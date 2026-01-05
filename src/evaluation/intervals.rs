@@ -12,6 +12,23 @@
 //! * **Parallelism**: Uses `rayon` to compute standard errors in parallel.
 //! * **Integration**: Plugs into the `loess-rs` executor via the `IntervalPassFn` hook.
 //! * **Generics**: Generic over `Float` types.
+//!
+//! ## Key concepts
+//!
+//! * **Standard Errors**: Computed in parallel for each query point.
+//! * **Leverage**: Hat matrix diagonal elements used for uncertainty estimation.
+//! * **Parallel Computation**: Independent per-point calculations for high throughput.
+//!
+//! ## Invariants
+//!
+//! * Input arrays x and y must have the same length.
+//! * Window size must be sufficient for degrees of freedom.
+//! * Standard errors are non-negative.
+//!
+//! ## Non-goals
+//!
+//! * This module does not compute the intervals itself (only standard errors).
+//! * This module does not handle T-distribution approximations (delegated to loess-rs).
 
 // Feature-gated imports
 #[cfg(feature = "cpu")]
@@ -49,6 +66,8 @@ use crate::engine::executor::LoessDistanceCalculator;
 pub fn interval_pass_parallel<T>(
     x: &[T],
     y: &[T],
+    x_search: &[T], // Augmented data
+    y_search: &[T], // Augmented values
     y_smooth: &[T],
     dims: usize,
     window_size: usize,
@@ -67,8 +86,8 @@ where
         return Vec::new();
     }
 
-    // Build KD-Tree
-    let kdtree = KDTree::new(x, dims);
+    // Build KD-Tree on AUGMENTED data
+    let kdtree = KDTree::new(x_search, dims);
 
     // Compute residuals for sigma estimation
     let mut residuals: Vec<T> = y
@@ -105,7 +124,7 @@ where
                 let query_offset = i * dims;
                 let query_point = &x[query_offset..query_offset + dims];
 
-                // Find k-nearest neighbors
+                // Find k-nearest neighbors in AUGMENTED data
                 kdtree.find_k_nearest(
                     query_point,
                     window_size,
@@ -115,11 +134,11 @@ where
                     neighborhood,
                 );
 
-                // Create regression context with leverage computation enabled
+                // Create regression context with leverage computation enabled using AUGMENTED data
                 let mut context = RegressionContext::new(
-                    x,
+                    x_search,
                     dims,
-                    y,
+                    y_search,
                     i,
                     Some(query_point),
                     neighborhood,

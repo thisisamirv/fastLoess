@@ -1,3 +1,33 @@
+//! Parallel KD-tree builder using Rayon.
+//!
+//! ## Purpose
+//!
+//! This module provides a multi-threaded builder for the KD-tree used in
+//! nearest neighbor searches. Construction is parallelized at the top levels
+//! of recursion to speed up initialization for large datasets.
+//!
+//! ## Design notes
+//!
+//! * **Recursive Parallelism**: Uses `rayon::join` to parallelize the recursive build steps.
+//! * **Depth Limit**: Parallelism typically targets the upper levels of the tree.
+//! * **Unsafe Access**: Uses raw pointers for concurrent writes to disjoint array indices.
+//!
+//! ## Key concepts
+//!
+//! * **KD-Tree**: Spatial indexing structure for fast neighbor lookup.
+//! * **Eytzinger Layout**: Cache-optimal array layout (left-complete binary tree).
+//! * **Median Splitting**: Balanced tree construction via `select_nth_unstable`.
+//!
+//! ## Invariants
+//!
+//! * Parallel construction produces an identical tree to sequential construction.
+//! * Thread safety is guaranteed by disjoint index access patterns.
+//!
+//! ## Non-goals
+//!
+//! * This module does not implement the search logic (delegated to loess-rs).
+//! * This module does not support dynamic updates.
+//!
 use loess_rs::internals::algorithms::regression::SolverLinalg;
 use loess_rs::internals::math::distance::DistanceLinalg;
 use loess_rs::internals::math::linalg::FloatLinalg;

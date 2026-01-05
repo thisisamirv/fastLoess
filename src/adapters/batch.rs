@@ -47,13 +47,16 @@ use std::result::Result;
 
 // Export dependencies from loess-rs crate
 use loess_rs::internals::adapters::batch::BatchLoessBuilder;
+use loess_rs::internals::algorithms::regression::PolynomialDegree;
 use loess_rs::internals::algorithms::regression::SolverLinalg;
 use loess_rs::internals::algorithms::regression::ZeroWeightFallback;
 use loess_rs::internals::algorithms::robustness::RobustnessMethod;
+use loess_rs::internals::api::SurfaceMode;
 use loess_rs::internals::engine::output::LoessResult;
 use loess_rs::internals::evaluation::cv::CVKind;
 use loess_rs::internals::math::boundary::BoundaryPolicy;
 use loess_rs::internals::math::distance::DistanceLinalg;
+use loess_rs::internals::math::distance::DistanceMetric;
 use loess_rs::internals::math::kernel::WeightFunction;
 use loess_rs::internals::math::linalg::FloatLinalg;
 use loess_rs::internals::math::scaling::ScalingMethod;
@@ -156,6 +159,42 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
         self
     }
 
+    /// Set the polynomial degree.
+    pub fn polynomial_degree(mut self, degree: PolynomialDegree) -> Self {
+        self.base.polynomial_degree = degree;
+        self
+    }
+
+    /// Set the number of dimensions explicitly.
+    pub fn dimensions(mut self, dims: usize) -> Self {
+        self.base.dimensions = dims;
+        self
+    }
+
+    /// Set the distance metric.
+    pub fn distance_metric(mut self, metric: DistanceMetric<T>) -> Self {
+        self.base.distance_metric = metric;
+        self
+    }
+
+    /// Set the surface evaluation mode (Direct or Interpolation).
+    pub fn surface_mode(mut self, mode: SurfaceMode) -> Self {
+        self.base.surface_mode = mode;
+        self
+    }
+
+    /// Set the cell size for interpolation mode.
+    pub fn cell(mut self, cell: f64) -> Self {
+        self.base.cell = Some(cell);
+        self
+    }
+
+    /// Set the maximum number of vertices for interpolation.
+    pub fn interpolation_vertices(mut self, vertices: usize) -> Self {
+        self.base.interpolation_vertices = Some(vertices);
+        self
+    }
+
     /// Enable auto-convergence for robustness iterations.
     pub fn auto_converge(mut self, tolerance: T) -> Self {
         self.base.auto_convergence = Some(tolerance);
@@ -168,15 +207,15 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
         self
     }
 
+    // ========================================================================
+    // Batch-Specific Setters
+    // ========================================================================
+
     /// Enable returning robustness weights in the result.
     pub fn return_robustness_weights(mut self, enabled: bool) -> Self {
         self.base.return_robustness_weights = enabled;
         self
     }
-
-    // ========================================================================
-    // Batch-Specific Setters
-    // ========================================================================
 
     /// Enable returning diagnostics in the result.
     pub fn return_diagnostics(mut self, enabled: bool) -> Self {
@@ -255,11 +294,13 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Float + Debug + Send + Syn
             Backend::CPU => {
                 #[cfg(feature = "cpu")]
                 {
-                    builder.custom_smooth_pass = Some(smooth_pass_parallel);
-                    builder.custom_cv_pass = Some(cv_pass_parallel);
-                    builder.custom_interval_pass = Some(interval_pass_parallel);
-                    builder.custom_vertex_pass = Some(vertex_pass_parallel);
-                    builder.custom_kdtree_builder = Some(build_kdtree_parallel);
+                    if builder.parallel.unwrap_or(true) {
+                        builder.custom_smooth_pass = Some(smooth_pass_parallel);
+                        builder.custom_cv_pass = Some(cv_pass_parallel);
+                        builder.custom_interval_pass = Some(interval_pass_parallel);
+                        builder.custom_vertex_pass = Some(vertex_pass_parallel);
+                        builder.custom_kdtree_builder = Some(build_kdtree_parallel);
+                    }
                 }
                 #[cfg(not(feature = "cpu"))]
                 {

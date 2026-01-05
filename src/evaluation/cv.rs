@@ -12,6 +12,23 @@
 //! * **Parallelism**: Uses `rayon` to evaluate candidate fractions in parallel.
 //! * **Integration**: Plugs into the `loess-rs` executor via the `CVPassFn` hook.
 //! * **Generics**: Generic over `Float` types.
+//!
+//! ## Key concepts
+//!
+//! * **Parallel Evaluation**: Evaluates all candidate fractions simultaneously.
+//! * **Fraction Selection**: Selects bandwidth minimizing Cross-Validation (CV) error.
+//! * **Integration**: Seamlessly integrates with serial/parallel executors.
+//!
+//! ## Invariants
+//!
+//! * Input arrays x and y must have the same length.
+//! * Fractions must be in (0, 1].
+//! * At least 2 data points are required.
+//!
+//! ## Non-goals
+//!
+//! * This module does not implement the CV strategy logic (delegated to loess-rs).
+//! * This module does not handle partial parallelism (all-or-nothing).
 
 // Feature-gated imports
 #[cfg(feature = "cpu")]
@@ -28,6 +45,7 @@ use loess_rs::internals::engine::executor::{LoessConfig, LoessExecutor};
 use loess_rs::internals::evaluation::cv::CVKind;
 use loess_rs::internals::math::distance::DistanceLinalg;
 use loess_rs::internals::math::linalg::FloatLinalg;
+use loess_rs::internals::math::neighborhood::KDTree;
 use loess_rs::internals::primitives::window::Window;
 
 // ============================================================================
@@ -121,6 +139,8 @@ where
 
             let mut total_sse = T::zero();
             let mut total_count = 0usize;
+            let executor = LoessExecutor::from_config(&cv_config);
+            let window_size = Window::calculate_span(n - fold_size, fraction); // Approx n_train
 
             for fold in 0..k {
                 let test_start = fold * fold_size;
@@ -131,10 +151,11 @@ where
                 };
                 let test_size = test_end - test_start;
 
-                // Build training data
+                // Build training and test data
                 let train_n = n - test_size;
                 let mut train_x = Vec::with_capacity(train_n * dims);
                 let mut train_y = Vec::with_capacity(train_n);
+                let mut test_x = Vec::with_capacity(test_size * dims);
 
                 for i in 0..n {
                     if i < test_start || i >= test_end {
@@ -142,6 +163,10 @@ where
                             train_x.push(x[i * dims + d]);
                         }
                         train_y.push(y[i]);
+                    } else {
+                        for d in 0..dims {
+                            test_x.push(x[i * dims + d]);
+                        }
                     }
                 }
 
@@ -149,23 +174,87 @@ where
                     continue;
                 }
 
-                // Fit on training data
-                let train_result =
-                    LoessExecutor::run_with_config(&train_x, &train_y, cv_config.clone());
+                // 1D Case: Use Interpolation to match Sequential behavior
+                if dims == 1 {
+                    // Fit on training data
+                    let train_result =
+                        LoessExecutor::run_with_config(&train_x, &train_y, cv_config.clone());
 
-                // Predict test points (simplified: use smoothed as-is for now)
-                // In a full implementation, we'd use the trained model to predict test points
-                // For now, use residuals from a full fit as approximation
-                for i in test_start..test_end {
-                    if i < y.len() {
-                        // Use simple squared error as metric
-                        let test_idx = i - test_start;
-                        if test_idx < train_result.smoothed.len() {
-                            let pred = train_result.smoothed.get(test_idx).copied().unwrap_or(y[i]);
-                            let residual = y[i] - pred;
-                            total_sse = total_sse + residual * residual;
-                            total_count += 1;
+                    // Sort (x, smooth) for interpolation
+                    let mut train_data: Vec<(T, T)> = train_x
+                        .iter()
+                        .zip(train_result.smoothed.iter())
+                        .map(|(&xi, &yi)| (xi, yi))
+                        .collect();
+
+                    train_data
+                        .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+                    let (sorted_tx, sorted_smooth): (Vec<T>, Vec<T>) =
+                        train_data.into_iter().unzip();
+
+                    let mut preds = vec![T::zero(); test_x.len()];
+                    CVKind::interpolate_prediction_batch(
+                        &sorted_tx,
+                        &sorted_smooth,
+                        &test_x,
+                        &mut preds,
+                    );
+
+                    for (i, &pred) in preds.iter().enumerate() {
+                        let actual_y = y[test_start + i];
+                        let residual = actual_y - pred;
+                        total_sse = total_sse + residual * residual;
+                        total_count += 1;
+                    }
+                } else {
+                    // nD Case: Use Direct Prediction (standard LOESS)
+
+                    // Compute scales (Min-Max)
+                    let mut scales = vec![T::one(); dims];
+                    if train_n > 0 {
+                        let mut mins = vec![train_x[0]; dims];
+                        let mut maxs = vec![train_x[0]; dims];
+
+                        for i in 0..train_n {
+                            for d in 0..dims {
+                                let val = train_x[i * dims + d];
+                                if val < mins[d] {
+                                    mins[d] = val;
+                                }
+                                if val > maxs[d] {
+                                    maxs[d] = val;
+                                }
+                            }
                         }
+                        for d in 0..dims {
+                            let range = maxs[d] - mins[d];
+                            if range > T::epsilon() {
+                                scales[d] = T::one() / range;
+                            }
+                        }
+                    }
+
+                    // Build KD-Tree on Training Data
+                    let kdtree = KDTree::new(&train_x, dims);
+
+                    let robustness_weights = vec![T::one(); train_n];
+
+                    let predictions = executor.predict(
+                        &train_x,
+                        &train_y,
+                        &robustness_weights,
+                        &test_x,
+                        window_size,
+                        &scales,
+                        &kdtree,
+                    );
+
+                    // Accumulate Error
+                    for (i, &pred) in predictions.iter().enumerate() {
+                        let actual_y = y[test_start + i];
+                        let residual = actual_y - pred;
+                        total_sse = total_sse + residual * residual;
+                        total_count += 1;
                     }
                 }
             }

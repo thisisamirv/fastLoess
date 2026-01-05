@@ -1,28 +1,29 @@
-//! High-level API for LOESS smoothing with parallel execution support.
+//! High-level API for LOESS smoothing.
 //!
 //! ## Purpose
 //!
-//! This module provides the primary user-facing entry point for LOESS with
-//! heavy-duty parallel execution capabilities. It extends the `loess-rs` API
-//! with adapters that utilize all available CPU cores or GPU hardware.
+//! This module provides the primary user-facing entry point for LOESS. It
+//! implements a fluent builder pattern for configuring regression parameters
+//! and choosing an execution adapter (Batch, Streaming, or Online).
 //!
 //! ## Design notes
 //!
-//! * **Fluent Integration**: Re-uses the base `loess-rs` builder pattern.
-//! * **Parallel-First**: Defaults to parallel execution where beneficial.
-//! * **Transparent**: Marker types (Batch, Streaming, Online) select the parallel builders.
+//! * **Ergonomic**: Fluent builder with sensible defaults for all parameters.
+//! * **Polymorphic**: Uses marker types to transition to specialized adapter builders.
+//! * **Validated**: Core parameters are validated during adapter construction.
+//! * **Type-Safe**: Generic over `Float` types for flexible precision.
 //!
 //! ## Key concepts
 //!
-//! * **Parallel Support**: Uses `rayon` (CPU) or `wgpu` (GPU) for acceleration.
-//! * **Extended Adapters**: Wraps core adapters with parallel implementation logic.
-//! * **Feature-Gated**: Parallelism is configurable via crate features.
+//! * **Execution Adapters**: Batch, Streaming, and Online modes.
+//! * **Configuration Flow**: Builder pattern ending in `.adapter(Adapter::Type)`.
+//! * **Validation**: Parameters are validated when `.build()` is called on the adapter.
 //!
 //! ### Configuration Flow
 //!
-//! 1. Create a [`crate::api::LoessBuilder`] via `Loess::new()`.
+//! 1. Create a [`LoessBuilder`](crate::api::LoessBuilder) via `Loess::new()`.
 //! 2. Chain configuration methods (`.fraction()`, `.iterations()`, etc.).
-//! 3. Select an adapter via `.adapter(Batch)` to get a parallel execution builder.
+//! 3. Select an adapter via `.adapter(Adapter::Batch)` to get an execution builder.
 
 // Feature-gated imports
 #[cfg(feature = "cpu")]
@@ -32,31 +33,30 @@ use crate::adapters::online::ParallelOnlineLoessBuilder;
 #[cfg(feature = "cpu")]
 use crate::adapters::streaming::ParallelStreamingLoessBuilder;
 
+// External dependencies
+use std::fmt::Debug;
+
 // Import base marker types for delegation
 use loess_rs::internals::api::Batch as BaseBatch;
 use loess_rs::internals::api::Online as BaseOnline;
 use loess_rs::internals::api::Streaming as BaseStreaming;
 
-// Import the base adapter types
+// Linear algebra imports
 use loess_rs::internals::algorithms::regression::SolverLinalg;
-use loess_rs::internals::api::LoessAdapter;
-pub use loess_rs::internals::api::LoessBuilder;
-
-/// Alias for `LoessBuilder` to provide a convenient entry point.
-pub type Loess<T> = LoessBuilder<T>;
 use loess_rs::internals::math::distance::DistanceLinalg;
 use loess_rs::internals::math::linalg::FloatLinalg;
-
-use std::fmt::Debug;
 
 // Publicly re-exported types
 pub use loess_rs::internals::adapters::online::UpdateMode;
 pub use loess_rs::internals::adapters::streaming::MergeStrategy;
-pub use loess_rs::internals::algorithms::regression::ZeroWeightFallback;
+pub use loess_rs::internals::algorithms::regression::{PolynomialDegree, ZeroWeightFallback};
 pub use loess_rs::internals::algorithms::robustness::RobustnessMethod;
+pub use loess_rs::internals::api::{LoessAdapter, LoessBuilder};
+pub use loess_rs::internals::engine::executor::SurfaceMode;
 pub use loess_rs::internals::engine::output::LoessResult;
 pub use loess_rs::internals::evaluation::cv::{KFold, LOOCV};
 pub use loess_rs::internals::math::boundary::BoundaryPolicy;
+pub use loess_rs::internals::math::distance::DistanceMetric;
 pub use loess_rs::internals::math::kernel::WeightFunction;
 pub use loess_rs::internals::math::scaling::ScalingMethod;
 pub use loess_rs::internals::primitives::backend::Backend;

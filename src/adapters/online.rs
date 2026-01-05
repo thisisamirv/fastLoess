@@ -10,6 +10,27 @@
 //! * **Storage**: Uses a fixed-size circular buffer for the sliding window.
 //! * **Processing**: Performs smoothing on the current window for each new point.
 //! * **Parallelism**: Optional parallel execution (defaults to false for latency).
+//!
+//! ## Key concepts
+//!
+//! * **Sliding Window**: Maintains recent history up to `capacity`.
+//! * **Incremental Processing**: Validates, adds, evicts, and smooths.
+//! * **Initialization Phase**: Returns `None` until `min_points` are accumulated.
+//! * **Update Modes**: Supports `Incremental` (fast) and `Full` (accurate) modes.
+//!
+//! ## Invariants
+//!
+//! * Window size never exceeds capacity.
+//! * All values in window are finite.
+//! * At least `min_points` are required before smoothing.
+//! * Window maintains insertion order (oldest to newest).
+//!
+//! ## Non-goals
+//!
+//! * This adapter does not support confidence/prediction intervals.
+//! * This adapter does not compute diagnostic statistics.
+//! * This adapter does not support cross-validation.
+//! * This adapter does not handle out-of-order points.
 
 // Feature-gated imports
 #[cfg(feature = "cpu")]
@@ -29,11 +50,14 @@ use crate::math::neighborhood::build_kdtree_parallel;
 
 // Export dependencies from loess-rs crate
 use loess_rs::internals::adapters::online::{OnlineLoessBuilder, OnlineOutput, UpdateMode};
+use loess_rs::internals::algorithms::regression::PolynomialDegree;
 use loess_rs::internals::algorithms::regression::SolverLinalg;
 use loess_rs::internals::algorithms::regression::ZeroWeightFallback;
 use loess_rs::internals::algorithms::robustness::RobustnessMethod;
+use loess_rs::internals::engine::executor::SurfaceMode;
 use loess_rs::internals::math::boundary::BoundaryPolicy;
 use loess_rs::internals::math::distance::DistanceLinalg;
+use loess_rs::internals::math::distance::DistanceMetric;
 use loess_rs::internals::math::kernel::WeightFunction;
 use loess_rs::internals::math::linalg::FloatLinalg;
 use loess_rs::internals::math::scaling::ScalingMethod;
@@ -128,21 +152,57 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
         self
     }
 
-    /// Enable auto-convergence for robustness iterations.
-    pub fn auto_converge(mut self, tolerance: T) -> Self {
+    /// Set the polynomial degree.
+    pub fn polynomial_degree(mut self, degree: PolynomialDegree) -> Self {
+        self.base.polynomial_degree = degree;
+        self
+    }
+
+    /// Set the number of dimensions explicitly (though usually inferred from input).
+    pub fn dimensions(mut self, dims: usize) -> Self {
+        self.base.dimensions = dims;
+        self
+    }
+
+    /// Set the distance metric.
+    pub fn distance_metric(mut self, metric: DistanceMetric<T>) -> Self {
+        self.base.distance_metric = metric;
+        self
+    }
+
+    /// Set the surface evaluation mode (Direct or Interpolation).
+    pub fn surface_mode(mut self, mode: SurfaceMode) -> Self {
+        self.base.surface_mode = mode;
+        self
+    }
+
+    /// Set the cell size for interpolation mode.
+    pub fn cell(mut self, cell: f64) -> Self {
+        self.base.cell = Some(cell);
+        self
+    }
+
+    /// Set the maximum number of vertices for interpolation.
+    pub fn interpolation_vertices(mut self, vertices: usize) -> Self {
+        self.base.interpolation_vertices = Some(vertices);
+        self
+    }
+
+    /// Set auto-convergence tolerance.
+    pub fn auto_convergence(mut self, tolerance: T) -> Self {
         self.base.auto_convergence = Some(tolerance);
         self
     }
 
-    /// Enable returning residuals in the output.
-    pub fn compute_residuals(mut self, enabled: bool) -> Self {
-        self.base.compute_residuals = enabled;
+    /// Set whether to compute residuals.
+    pub fn compute_residuals(mut self, compute: bool) -> Self {
+        self.base.compute_residuals = compute;
         self
     }
 
-    /// Enable returning robustness weights in the result.
-    pub fn return_robustness_weights(mut self, enabled: bool) -> Self {
-        self.base.return_robustness_weights = enabled;
+    /// Set whether to return robustness weights.
+    pub fn return_robustness_weights(mut self, ret: bool) -> Self {
+        self.base.return_robustness_weights = ret;
         self
     }
 
@@ -150,19 +210,19 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
     // Online-Specific Setters
     // ========================================================================
 
-    /// Set window capacity (maximum number of points to retain).
+    /// Set the window capacity.
     pub fn window_capacity(mut self, capacity: usize) -> Self {
         self.base.window_capacity = capacity;
         self
     }
 
-    /// Set minimum points before smoothing starts.
+    /// Set the minimum points required before smoothing.
     pub fn min_points(mut self, min: usize) -> Self {
         self.base.min_points = min;
         self
     }
 
-    /// Set the update mode for incremental processing.
+    /// Set the update mode (Incremental/Full).
     pub fn update_mode(mut self, mode: UpdateMode) -> Self {
         self.base.update_mode = mode;
         self
@@ -184,7 +244,7 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
 
         #[cfg(feature = "cpu")]
         {
-            if builder.parallel.unwrap_or(false) {
+            if builder.parallel.unwrap_or(true) {
                 builder.custom_smooth_pass = Some(smooth_pass_parallel);
                 builder.custom_cv_pass = Some(cv_pass_parallel);
                 builder.custom_interval_pass = Some(interval_pass_parallel);

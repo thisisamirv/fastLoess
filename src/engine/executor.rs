@@ -140,6 +140,8 @@ impl<'a, T: FloatLinalg + DistanceLinalg + SolverLinalg> PointDistance<T>
 pub fn smooth_pass_parallel<T>(
     x: &[T],
     y: &[T],
+    x_search: &[T], // Augmented data
+    y_search: &[T], // Augmented values
     dims: usize,
     window_size: usize,
     use_robustness: bool,
@@ -158,8 +160,8 @@ pub fn smooth_pass_parallel<T>(
         return;
     }
 
-    // Build KD-Tree for efficient neighbor finding
-    let kdtree = KDTree::new(x, dims);
+    // Build KD-Tree for efficient neighbor finding on AUGMENTED data
+    let kdtree = KDTree::new(x_search, dims);
 
     // Parallel iteration over all points
     let smoothed_values: Vec<T> = (0..n)
@@ -182,7 +184,7 @@ pub fn smooth_pass_parallel<T>(
                 let query_offset = i * dims;
                 let query_point = &x[query_offset..query_offset + dims];
 
-                // Find k-nearest neighbors
+                // Find k-nearest neighbors in AUGMENTED data
                 kdtree.find_k_nearest(
                     query_point,
                     window_size,
@@ -192,11 +194,11 @@ pub fn smooth_pass_parallel<T>(
                     neighborhood,
                 );
 
-                // Create regression context and fit
+                // Create regression context and fit using AUGMENTED data
                 let mut context = RegressionContext::new(
-                    x,
+                    x_search,
                     dims,
-                    y,
+                    y_search,
                     i,
                     Some(query_point),
                     neighborhood,
