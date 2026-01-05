@@ -243,12 +243,30 @@ pub fn vertex_pass_parallel<T>(
     polynomial_degree: PolynomialDegree,
     distance_metric: &DistanceMetric<T>,
     scales: &[T],
+    boundary_degree_fallback: bool,
 ) where
     T: FloatLinalg + DistanceLinalg + SolverLinalg + Float + Debug + Send + Sync + 'static,
 {
     let n_vertices = vertices.len() / dims;
     let stride = dims + 1;
     let n_data = y.len();
+
+    // Compute tight bounds for Boundary Degree Fallback
+    let mut tight_lower = vec![T::infinity(); dims];
+    let mut tight_upper = vec![T::neg_infinity(); dims];
+    let n_points = x.len() / dims;
+
+    for i in 0..n_points {
+        for d in 0..dims {
+            let val = x[i * dims + d];
+            if val < tight_lower[d] {
+                tight_lower[d] = val;
+            }
+            if val > tight_upper[d] {
+                tight_upper[d] = val;
+            }
+        }
+    }
 
     // KD-Tree is only needed if we don't have existing neighborhoods
     let kdtree_opt = if existing_neighborhoods.is_none() {
@@ -270,6 +288,19 @@ pub fn vertex_pass_parallel<T>(
             |(search_buffer, neighborhood, fitting_buffer), v_idx| {
                 let v_start = v_idx * dims;
                 let vertex = &vertices[v_start..v_start + dims];
+
+                // Boundary Degree Fallback logic
+                let is_outside = (0..dims).any(|d| {
+                    vertex[d] < tight_lower[d] - T::epsilon()
+                        || vertex[d] > tight_upper[d] + T::epsilon()
+                });
+
+                let effective_degree =
+                    if boundary_degree_fallback && is_outside && polynomial_degree.value() > 1 {
+                        PolynomialDegree::Linear
+                    } else {
+                        polynomial_degree
+                    };
 
                 let mut cached_opt = None;
 
@@ -320,7 +351,7 @@ pub fn vertex_pass_parallel<T>(
                     robustness_weights,
                     weight_function,
                     zero_weight_fallback,
-                    polynomial_degree,
+                    effective_degree,
                     false, // compute_leverage
                     Some(fitting_buffer),
                 );
@@ -368,6 +399,7 @@ pub fn vertex_pass_parallel<T>(
     _polynomial_degree: PolynomialDegree,
     _distance_metric: &DistanceMetric<T>,
     _scales: &[T],
+    _boundary_degree_fallback: bool,
 ) where
     T: Float + Send + Sync,
 {

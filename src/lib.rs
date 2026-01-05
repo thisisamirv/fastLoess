@@ -30,16 +30,43 @@
 //!
 //! <div align="center">
 //! <object data="../../../docs/loess_smoothing_concept.svg" type="image/svg+xml" width="800" height="500">
-//! <img src="https://raw.githubusercontent.com/thisisamirv/loess-rs/main/docs/loess_smoothing_concept.svg" alt="LOESS Smoothing Concept" width="800"/>
+//! <img src="https://raw.githubusercontent.com/thisisamirv/fastLoess/main/docs/loess_smoothing_concept.svg" alt="LOESS Smoothing Concept" width="800"/>
 //! </object>
-//!
-//! *LOESS creates smooth curves through scattered data using local weighted neighborhoods*
 //! </div>
 //!
-//! 1. For each point, select nearby neighbors (controlled by `fraction`)
-//! 2. Fit a weighted polynomial (closer points get higher weight)
-//! 3. Use the fitted value as the smoothed estimate
-//! 4. Optionally iterate to downweight outliers (robustness)
+//! 1. **Select Neighborhood**: Identify the $k$ nearest neighbors for the target point based on the smoothing `fraction`.
+//! 2. **Assign Weights**: Apply a distance-based kernel function (e.g., tricube) to weight these neighbors, prioritizing closer points.
+//! 3. **Local Fit**: Fit a weighted polynomial (linear or quadratic) to the neighborhood using Weighted Least Squares (WLS).
+//! 4. **Predict**: Evaluate the polynomial at the target point to obtain the smoothed value.
+//!
+//! ## LOESS vs. LOWESS
+//!
+//! | Feature               | LOESS (This Crate)                | LOWESS                         |
+//! |-----------------------|-----------------------------------|--------------------------------|
+//! | **Polynomial Degree** | Linear, Quadratic, Cubic, Quartic | Linear (Degree 1)              |
+//! | **Dimensions**        | Multivariate (n-D support)        | Univariate (1-D only)          |
+//! | **Flexibility**       | High (Distance metrics)           | Standard                       |
+//! | **Complexity**        | Higher (Matrix inversion)         | Lower (Weighted average/slope) |
+//!
+//! LOESS can fit higher-degree polynomials for more complex data:
+//!
+//! <div align="left">
+//! <object data="../../../docs/degree_comparison.svg" type="image/svg+xml" width="800" height="450">
+//! <img src="https://raw.githubusercontent.com/thisisamirv/fastLoess/main/docs/degree_comparison.svg" alt="Degree Comparison" width="800"/>
+//! </object>
+//! </div>
+//!
+//! LOESS can also handle multivariate data (n-D), while LOWESS is limited to univariate data (1-D):
+//!
+//! <div align="left">
+//! <object data="../../../docs/multivariate_loess.svg" type="image/svg+xml" width="800" height="450">
+//! <img src="https://raw.githubusercontent.com/thisisamirv/fastLoess/main/docs/multivariate_loess.svg" alt="Multivariate LOESS" width="800"/>
+//! </object>
+//! </div>
+//!
+//! <div style="background-color: #4c4b4fff; border-left: 5px solid #ff1818ff; padding: 12px; margin: 15px 0;">
+//!   <strong>Note:</strong> For a simple, lightweight, and fast <strong>LOWESS</strong> implementation, use <a href="https://github.com/thisisamirv/lowess">lowess</a> crate.
+//! </div>
 //!
 //! ## Quick Start
 //!
@@ -99,6 +126,7 @@
 //!     .robustness_method(Bisquare)                     // Outlier handling
 //!     .surface_mode(Interpolation)                     // Surface evaluation mode
 //!     .boundary_policy(Extend)                         // Boundary handling
+//!     .boundary_degree_fallback(true)                  // Boundary degree fallback
 //!     .scaling_method(MAD)                             // Scaling method
 //!     .cell(0.2)                                       // Interpolation cell size
 //!     .interpolation_vertices(1000)                    // Maximum vertices for interpolation
@@ -234,6 +262,7 @@
 //! | **zero_weight_fallback**      | `UseLocalMean`                                | 3 fallback options   | Behavior when all weights are zero               | All              |
 //! | **return_residuals**          | false                                         | true/false           | Include residuals in output                      | All              |
 //! | **boundary_policy**           | `Extend`                                      | 4 policy options     | Edge handling strategy (reduces boundary bias)   | All              |
+//! | **boundary_degree_fallback**  | true                                          | true/false           | Use linear fit at boundaries                     | All              |
 //! | **auto_convergence**          | None                                          | Tolerance value      | Early stopping for robustness                    | All              |
 //! | **return_robustness_weights** | false                                         | true/false           | Include final weights in output                  | All              |
 //! | **degree**                    | `Linear`                                      | 0, 1, 2, 3, 4        | Polynomial degree (constant to quartic)          | All              |
@@ -476,7 +505,7 @@
 //!
 //! <div align="center">
 //! <object data="../../../docs/fraction_effect_comparison.svg" type="image/svg+xml" width="1200" height="450">
-//! <img src="https://raw.githubusercontent.com/thisisamirv/loess-rs/main/docs/fraction_effect_comparison.svg" alt="Fraction Effect" width="1200"/>
+//! <img src="https://raw.githubusercontent.com/thisisamirv/fastLoess/main/docs/fraction_effect_comparison.svg" alt="Fraction Effect" width="1200"/>
 //! </object>
 //!
 //! *Under-smoothing (fraction too small), optimal smoothing, and over-smoothing (fraction too large)*
@@ -513,11 +542,12 @@
 //!
 //! <div align="center">
 //! <object data="../../../docs/robust_vs_standard_loess.svg" type="image/svg+xml" width="900" height="500">
-//! <img src="https://raw.githubusercontent.com/thisisamirv/loess-rs/main/docs/robust_vs_standard_loess.svg" alt="Robustness Effect" width="900"/>
+//! <img src="https://raw.githubusercontent.com/thisisamirv/fastLoess/main/docs/robust_vs_standard_loess.svg" alt="Robustness Effect" width="900"/>
 //! </object>
 //!
 //! *Standard LOESS (left) vs Robust LOESS (right) - robustness iterations downweight outliers*
 //! </div>
+//!
 //! - **Range**: [0, 1000]
 //! - **Effect**: More iterations = stronger outlier downweighting
 //!
@@ -771,6 +801,40 @@
 //! > **Note:** For nD (multivariate) data, `Extend` currently defaults to `NoBoundary` behavior
 //! > to preserve regression accuracy, as constant extension can distort local gradients.
 //! > `Reflect` and `Zero` are fully supported in nD.
+//!
+//! ### Boundary Degree Fallback
+//!
+//! Controls whether polynomial degree is reduced at boundary vertices during interpolation.
+//!
+//! When using `Interpolation` surface mode with higher polynomial degrees (Quadratic, Cubic, etc.),
+//! vertices outside the "tight data bounds" can produce unstable extrapolation. This option
+//! controls whether to fall back to Linear fits at those boundary vertices:
+//!
+//! - **`true`** (default): Reduce to Linear at boundary vertices (more stable)
+//! - **`false`**: Use full requested degree everywhere (matches R's `loess` exactly)
+//!
+//! ```rust
+//! use fastLoess::prelude::*;
+//! # let x = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+//! # let y = vec![2.0, 4.1, 5.9, 8.2, 9.8];
+//!
+//! // Default (stable boundary handling)
+//! let stable_model = Loess::<f64>::new()
+//!     .degree(Quadratic)
+//!     .adapter(Batch)
+//!     .build()?;
+//!
+//! // Match R's loess behavior exactly
+//! let r_compatible = Loess::<f64>::new()
+//!     .degree(Quadratic)
+//!     .boundary_degree_fallback(false)
+//!     .adapter(Batch)
+//!     .build()?;
+//! # Result::<(), LoessError>::Ok(())
+//! ```
+//!
+//! > **Note:** This setting only affects `Interpolation` mode. In `Direct` mode, the full
+//! > polynomial degree is always used at every point.
 //!
 //! ### Auto-Convergence
 //!

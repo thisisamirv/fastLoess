@@ -7,6 +7,12 @@
 
 A high-performance implementation of LOESS (Locally Estimated Scatterplot Smoothing) in Rust. This crate provides a robust, production-ready implementation with support for confidence intervals, multiple kernel functions, and optimized execution modes.
 
+## How LOESS works
+
+LOESS creates smooth curves through scattered data using local weighted neighborhoods:
+
+![LOESS Smoothing Concept](https://raw.githubusercontent.com/thisisamirv/fastLoess/main/docs/loess_smoothing_concept.svg)
+
 ## LOESS vs. LOWESS
 
 | Feature               | LOESS (This Crate)                | LOWESS                         |
@@ -16,8 +22,16 @@ A high-performance implementation of LOESS (Locally Estimated Scatterplot Smooth
 | **Flexibility**       | High (Distance metrics)           | Standard                       |
 | **Complexity**        | Higher (Matrix inversion)         | Lower (Weighted average/slope) |
 
+LOESS can fit higher-degree polynomials for more complex data:
+
+![Degree Comparison](https://raw.githubusercontent.com/thisisamirv/fastLoess/main/docs/degree_comparison.svg)
+
+LOESS can also handle multivariate data (n-D), while LOWESS is limited to univariate data (1-D):
+
+![Multivariate LOESS](https://raw.githubusercontent.com/thisisamirv/fastLoess/main/docs/multivariate_loess.svg)
+
 > [!TIP]
-> For a **LOWESS** implementation which is faster and simpler, use [`lowess`](https://github.com/thisisamirv/lowess).
+> **Note:** For a simple, lightweight, and fast **LOWESS** implementation, use [`lowess`](https://github.com/thisisamirv/lowess) crate.
 
 ## Features
 
@@ -64,6 +78,38 @@ Benchmarked against R's `loess`. Achieves **3.3×–25× faster performance** ac
 | iterations_0     | 0.75ms | 5.69ms  | **7.56×**  |
 
 Check [Benchmarks](https://github.com/thisisamirv/fastLoess/tree/bench/benchmarks) for detailed results and reproducible benchmarking code.
+
+## Robustness Advantages
+
+This implementation includes several robustness features beyond R's `loess`:
+
+### MAD-Based Scale Estimation
+
+Uses **MAD-based scale estimation** for robustness weight calculations:
+
+```text
+s = median(|r_i - median(r)|)
+```
+
+MAD is a **breakdown-point-optimal** estimator—it remains valid even when up to 50% of data are outliers, compared to the median of absolute residuals used by some other implementations.
+
+Median Absolute Residual (MAR), which is the default Cleveland's choice, is also available through the `scaling_method` parameter.
+
+### Configurable Boundary Policies
+
+R's `loess` uses asymmetric windows at data boundaries, which can introduce edge bias. This implementation offers configurable **boundary policies** to mitigate this:
+
+- **Extend** (default): Pad with constant values for symmetric windows
+- **Reflect**: Mirror data at boundaries (best for periodic data)
+- **Zero**: Pad with zeros (signal processing applications)
+- **NoBoundary**: Original R behavior (no padding)
+
+### Boundary Degree Fallback
+
+When using `Interpolation` mode with higher polynomial degrees (Quadratic, Cubic), vertices outside the tight data bounds can produce unstable extrapolation. This implementation offers a configurable **boundary degree fallback**:
+
+- **`true`** (default): Reduce to Linear fits at boundary vertices (more stable)
+- **`false`**: Use full requested degree everywhere (matches R exactly)
 
 ## Validation
 
@@ -161,6 +207,9 @@ Loess::new()
 
     // Boundary handling - default: Extend
     .boundary_policy(Reflect)
+
+    // Boundary degree fallback - default: true
+    .boundary_degree_fallback(true)
 
     // Confidence intervals (Batch only)
     .confidence_intervals(0.95)
@@ -333,18 +382,6 @@ cargo run --example streaming_smoothing
 ## MSRV
 
 Rust **1.85.0** or later (2024 Edition).
-
-## Robustness Advantages
-
-This implementation uses **MAD-based scale estimation** for robustness weight calculations:
-
-```text
-s = median(|r_i - median(r)|)
-```
-
-MAD is a **breakdown-point-optimal** estimator—it remains valid even when up to 50% of data are outliers, compared to the median of absolute residuals used by some other implementations.
-
-Median Absolute Residual (MAR), which is the default Cleveland's choice, is also available through the `scaling_method` parameter.
 
 ## Contributing
 

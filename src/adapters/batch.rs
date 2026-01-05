@@ -53,7 +53,7 @@ use loess_rs::internals::algorithms::regression::ZeroWeightFallback;
 use loess_rs::internals::algorithms::robustness::RobustnessMethod;
 use loess_rs::internals::api::SurfaceMode;
 use loess_rs::internals::engine::output::LoessResult;
-use loess_rs::internals::evaluation::cv::CVKind;
+use loess_rs::internals::evaluation::cv::{CVConfig, CVKind};
 use loess_rs::internals::math::boundary::BoundaryPolicy;
 use loess_rs::internals::math::distance::DistanceLinalg;
 use loess_rs::internals::math::distance::DistanceMetric;
@@ -189,6 +189,12 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
         self
     }
 
+    /// Set whether to reduce polynomial degree at boundary vertices.
+    pub fn boundary_degree_fallback(mut self, enabled: bool) -> Self {
+        self.base = self.base.boundary_degree_fallback(enabled);
+        self
+    }
+
     /// Set the maximum number of vertices for interpolation.
     pub fn interpolation_vertices(mut self, vertices: usize) -> Self {
         self.base.interpolation_vertices = Some(vertices);
@@ -235,15 +241,29 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
         self
     }
 
-    /// Enable cross-validation with the specified fractions.
-    pub fn cross_validate(mut self, fractions: Vec<T>) -> Self {
-        self.base.cv_fractions = Some(fractions);
+    /// Enable cross-validation using the specified configuration.
+    pub fn cross_validate(mut self, config: CVConfig<'_, T>) -> Self {
+        self.base.cv_fractions = Some(config.fractions().to_vec());
+        self.base.cv_kind = Some(config.kind());
+        self.base.cv_seed = config.get_seed();
+        self
+    }
+
+    /// Set the random seed for reproducible cross-validation.
+    pub fn cv_seed(mut self, seed: u64) -> Self {
+        self.base.cv_seed = Some(seed);
         self
     }
 
     /// Set the cross-validation method.
     pub fn cv_kind(mut self, method: CVKind) -> Self {
         self.base.cv_kind = Some(method);
+        self
+    }
+
+    /// Enable returning standard errors in the result.
+    pub fn return_se(mut self, enabled: bool) -> Self {
+        self.base = self.base.return_se(enabled);
         self
     }
 
