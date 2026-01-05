@@ -199,7 +199,7 @@ impl<T: FloatLinalg + DistanceLinalg + SolverLinalg + Debug + Send + Sync>
 
     /// Enable auto-convergence for robustness iterations.
     pub fn auto_converge(mut self, tolerance: T) -> Self {
-        self.base.auto_convergence = Some(tolerance);
+        self.base.auto_converge = Some(tolerance);
         self
     }
 

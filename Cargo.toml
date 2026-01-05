@@ -30,7 +30,7 @@ include = [
 ]
 
 [dependencies]
-loess-rs = { path = "../loess-rs", features = ["dev"] }
+loess-rs = { version = "0.2", features = ["dev"] }
 num-traits = { version = "0.2.19", default-features = false, features = [
     "libm",
 ] }
