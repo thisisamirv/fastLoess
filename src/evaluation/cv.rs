@@ -108,6 +108,7 @@ where
     cv_config.fraction = Some(fraction);
     cv_config.cv_fractions = None; // Don't recurse
     cv_config.return_variance = None; // Speed up CV
+    cv_config.return_variance = None; // Speed up CV
 
     match cv_kind {
         CVKind::LOOCV => {
@@ -137,8 +138,7 @@ where
                 return T::infinity();
             }
 
-            let mut total_sse = T::zero();
-            let mut total_count = 0usize;
+            let mut fold_rmses = Vec::with_capacity(k);
             let executor = LoessExecutor::from_config(&cv_config);
             let window_size = Window::calculate_span(n - fold_size, fraction); // Approx n_train
 
@@ -174,6 +174,9 @@ where
                     continue;
                 }
 
+                let mut fold_sse = T::zero();
+                let mut fold_count = 0usize;
+
                 // 1D Case: Use Interpolation to match Sequential behavior
                 if dims == 1 {
                     // Fit on training data
@@ -203,8 +206,8 @@ where
                     for (i, &pred) in preds.iter().enumerate() {
                         let actual_y = y[test_start + i];
                         let residual = actual_y - pred;
-                        total_sse = total_sse + residual * residual;
-                        total_count += 1;
+                        fold_sse = fold_sse + residual * residual;
+                        fold_count += 1;
                     }
                 } else {
                     // nD Case: Use Direct Prediction (standard LOESS)
@@ -253,16 +256,21 @@ where
                     for (i, &pred) in predictions.iter().enumerate() {
                         let actual_y = y[test_start + i];
                         let residual = actual_y - pred;
-                        total_sse = total_sse + residual * residual;
-                        total_count += 1;
+                        fold_sse = fold_sse + residual * residual;
+                        fold_count += 1;
                     }
+                }
+
+                if fold_count > 0 {
+                    fold_rmses.push((fold_sse / T::from(fold_count).unwrap()).sqrt());
                 }
             }
 
-            if total_count == 0 {
+            if fold_rmses.is_empty() {
                 T::infinity()
             } else {
-                (total_sse / T::from(total_count).unwrap()).sqrt()
+                let sum: T = fold_rmses.iter().copied().fold(T::zero(), |a, b| a + b);
+                sum / T::from(fold_rmses.len()).unwrap()
             }
         }
     }
