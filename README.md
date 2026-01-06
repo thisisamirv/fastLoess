@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/fastLoess.svg)](https://crates.io/crates/fastLoess)
 [![Documentation](https://docs.rs/fastLoess/badge.svg)](https://docs.rs/fastLoess)
-[![License](https://img.shields.io/badge/License-AGPL--3.0%20OR%20Commercial-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org)
 
 **High-performance parallel LOESS (Locally Estimated Scatterplot Smoothing) for Rust** — A high-level wrapper around the [`loess-rs`](https://github.com/thisisamirv/loess-rs) crate that adds rayon-based parallelism and seamless ndarray integration.
