@@ -5,7 +5,10 @@
 [![License](https://img.shields.io/badge/License-AGPL--3.0%20OR%20Commercial-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org)
 
-A high-performance implementation of LOESS (Locally Estimated Scatterplot Smoothing) in Rust. This crate provides a robust, production-ready implementation with support for confidence intervals, multiple kernel functions, and optimized execution modes.
+**High-performance parallel LOESS (Locally Estimated Scatterplot Smoothing) for Rust** — A high-level wrapper around the [`loess-rs`](https://github.com/thisisamirv/loess-rs) crate that adds rayon-based parallelism and seamless ndarray integration.
+
+> [!IMPORTANT]
+> For a minimal, single-threaded, and `no_std` version, use base [`loess-rs`](https://github.com/thisisamirv/loess-rs).
 
 ## How LOESS works
 
