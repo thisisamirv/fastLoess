@@ -96,6 +96,7 @@ fn process_file(input_path: &Path, output_dir: &Path) -> Result<(), Box<dyn Erro
         .iterations(data.params.iterations)
         .surface_mode(surface_mode)
         .boundary_policy(NoBoundary)
+        .boundary_degree_fallback(false)
         .scaling_method(MAR)
         .parallel(true)
         .adapter(Batch)

@@ -12,7 +12,7 @@
 //!
 //! Run with: `cargo bench`
 
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use fastLoess::prelude::*;
 use rand::prelude::*;
 use rand_distr::{Normal, Uniform};
@@ -237,7 +237,7 @@ fn bench_scalability(c: &mut Criterion) {
                     .parallel(use_parallel)
                     .build()
                     .unwrap()
-                    .fit((black_box(&x), black_box(&y)))
+                    .fit(black_box(&x), black_box(&y))
                     .unwrap()
             })
         });
@@ -266,7 +266,7 @@ fn bench_fraction(c: &mut Criterion) {
                     .parallel(use_parallel)
                     .build()
                     .unwrap()
-                    .fit((black_box(&x), black_box(&y)))
+                    .fit(black_box(&x), black_box(&y))
                     .unwrap()
             })
         });
@@ -295,7 +295,7 @@ fn bench_iterations(c: &mut Criterion) {
                     .parallel(use_parallel)
                     .build()
                     .unwrap()
-                    .fit((black_box(&x), black_box(&y)))
+                    .fit(black_box(&x), black_box(&y))
                     .unwrap()
             })
         });
@@ -323,7 +323,7 @@ fn bench_financial(c: &mut Criterion) {
                     .parallel(use_parallel)
                     .build()
                     .unwrap()
-                    .fit((black_box(&x), black_box(&y)))
+                    .fit(black_box(&x), black_box(&y))
                     .unwrap()
             })
         });
@@ -351,7 +351,7 @@ fn bench_scientific(c: &mut Criterion) {
                     .parallel(use_parallel)
                     .build()
                     .unwrap()
-                    .fit((black_box(&x), black_box(&y)))
+                    .fit(black_box(&x), black_box(&y))
                     .unwrap()
             })
         });
@@ -379,7 +379,7 @@ fn bench_genomic(c: &mut Criterion) {
                     .parallel(use_parallel)
                     .build()
                     .unwrap()
-                    .fit((black_box(&x), black_box(&y)))
+                    .fit(black_box(&x), black_box(&y))
                     .unwrap()
             })
         });
@@ -408,7 +408,7 @@ fn bench_pathological(c: &mut Criterion) {
                 .parallel(use_parallel)
                 .build()
                 .unwrap()
-                .fit((black_box(&x_clustered), black_box(&y_clustered)))
+                .fit(black_box(&x_clustered), black_box(&y_clustered))
                 .unwrap()
         })
     });
@@ -427,7 +427,7 @@ fn bench_pathological(c: &mut Criterion) {
                 .parallel(use_parallel)
                 .build()
                 .unwrap()
-                .fit((black_box(&x_noisy), black_box(&y_noisy)))
+                .fit(black_box(&x_noisy), black_box(&y_noisy))
                 .unwrap()
         })
     });
@@ -446,7 +446,7 @@ fn bench_pathological(c: &mut Criterion) {
                 .parallel(use_parallel)
                 .build()
                 .unwrap()
-                .fit((black_box(&x_outlier), black_box(&y_outlier)))
+                .fit(black_box(&x_outlier), black_box(&y_outlier))
                 .unwrap()
         })
     });
@@ -466,7 +466,7 @@ fn bench_pathological(c: &mut Criterion) {
                 .parallel(use_parallel)
                 .build()
                 .unwrap()
-                .fit((black_box(&x_const), black_box(&y_const)))
+                .fit(black_box(&x_const), black_box(&y_const))
                 .unwrap()
         })
     });
@@ -508,7 +508,7 @@ fn bench_polynomial_degrees(c: &mut Criterion) {
                     .parallel(use_parallel)
                     .build()
                     .unwrap()
-                    .fit((black_box(&x), black_box(&y)))
+                    .fit(black_box(&x), black_box(&y))
                     .unwrap()
             })
         });
@@ -536,7 +536,7 @@ fn bench_dimensions(c: &mut Criterion) {
                 .parallel(use_parallel)
                 .build()
                 .unwrap()
-                .fit((black_box(&x1), black_box(&y1)))
+                .fit(black_box(&x1), black_box(&y1))
                 .unwrap()
         })
     });
@@ -555,7 +555,7 @@ fn bench_dimensions(c: &mut Criterion) {
                 .parallel(use_parallel)
                 .build()
                 .unwrap()
-                .fit((black_box(&x2), black_box(&y2)))
+                .fit(black_box(&x2), black_box(&y2))
                 .unwrap()
         })
     });
@@ -574,7 +574,7 @@ fn bench_dimensions(c: &mut Criterion) {
                 .parallel(use_parallel)
                 .build()
                 .unwrap()
-                .fit((black_box(&x3), black_box(&y3)))
+                .fit(black_box(&x3), black_box(&y3))
                 .unwrap()
         })
     });
