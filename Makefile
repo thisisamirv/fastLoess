@@ -1,5 +1,5 @@
 # Run all local checks (formatting, linting, building, tests, docs)
-check: fmt clippy build test doc
+check: fmt clippy build test doc examples
 	@echo "All checks completed successfully!"
 
 # Coverage (requires cargo-llvm-cov and llvm)
@@ -11,17 +11,22 @@ coverage:
 # ... (formatting, linter, build, test, doc sections remain unchanged)
 
 # Examples
-examples:
-	@echo "No examples available."
+examples: example_batch example_online example_streaming
 
 example_batch:
-	@echo "No batch example available."
+	@echo "Building examples..."
+	@cargo run --example batch_smoothing
+	@echo "Examples build complete!"
 
 example_online:
-	@echo "No online example available."
+	@echo "Building examples..."
+	@cargo run --example online_smoothing
+	@echo "Examples build complete!"
 
 example_streaming:
-	@echo "No streaming example available."
+	@echo "Building examples..."
+	@cargo run --example streaming_smoothing
+	@echo "Examples build complete!"
 
 # Formatting
 fmt:

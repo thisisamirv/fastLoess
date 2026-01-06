@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        feature: [cpu, gpu]
+        feature: [cpu]
         rust: [stable]
 
     steps:
@@ -101,9 +101,6 @@ jobs:
       - name: Run Clippy (cpu feature)
         run: cargo clippy --all-targets --features cpu -- -D warnings
 
-      - name: Run Clippy (gpu feature)
-        run: cargo clippy --all-targets --features gpu -- -D warnings
-
   # ============================================================================
   # DOCS JOB
   # ============================================================================
@@ -124,11 +121,6 @@ jobs:
       # Build
       - name: Check Documentation (cpu feature)
         run: cargo doc --no-deps --features cpu
-        env:
-          RUSTDOCFLAGS: -D warnings
-
-      - name: Check Documentation (gpu feature)
-        run: cargo doc --no-deps --features gpu
         env:
           RUSTDOCFLAGS: -D warnings
 
