@@ -11,7 +11,7 @@ A high-performance implementation of LOESS (Locally Estimated Scatterplot Smooth
 
 LOESS creates smooth curves through scattered data using local weighted neighborhoods:
 
-![LOESS Smoothing Concept](https://raw.githubusercontent.com/thisisamirv/fastLoess/main/docs/loess_smoothing_concept.svg)
+![LOESS Smoothing Concept](https://raw.githubusercontent.com/thisisamirv/fastLoess/main/docs/loess_concept.svg)
 
 ## LOESS vs. LOWESS
 
@@ -46,36 +46,54 @@ LOESS can also handle multivariate data (n-D), while LOWESS is limited to univar
 
 ## Performance
 
-Benchmarked against R's `loess`. Achieves **3.3×–25× faster performance** across all tested scenarios. No regressions observed.
+Benchmarked against R's `stats::loess`. The latest benchmarks comparing **Serial** vs **Parallel (Rayon)** execution modes show that the parallel implementation correctly leverages multiple cores to provide additional speedups, particularly for computationally heavier tasks (high dimensions, larger datasets).
 
-### Summary
+Overall, Rust implementations achieve **3x to 54x** speedups over R.
 
-| Category               | Matched | Median Speedup | Mean Speedup |
-|------------------------|---------|----------------|--------------|
-| **Fraction**           | 6       | **6.03×**      | 9.30×        |
-| **Iterations**         | 6       | **8.79×**      | 8.91×        |
-| **Polynomial Degrees** | 2       | **8.84×**      | 8.84×        |
-| **Pathological**       | 4       | **6.88×**      | 7.58×        |
-| **Financial**          | 3       | **4.30×**      | 4.36×        |
-| **Scalability**        | 2       | **3.99×**      | 3.99×        |
-| **Dimensions**         | 3       | **3.85×**      | 3.91×        |
-| **Scientific**         | 3       | **3.75×**      | 3.70×        |
-| **Genomic**            | 2       | **3.32×**      | 3.32×        |
+### Comparison: R vs Rust (Serial) vs Rust (Parallel)
 
-### Top 10 Performance Wins
+The table below shows the execution time and speedup relative to R.
 
-| Benchmark        | Rust   | R       | Speedup    |
-|------------------|--------|---------|------------|
-| fraction_0.67    | 0.86ms | 21.63ms | **25.23×** |
-| fraction_0.5     | 1.14ms | 12.85ms | **11.25×** |
-| iterations_1     | 0.76ms | 8.44ms  | **11.12×** |
-| high_noise       | 1.50ms | 15.86ms | **10.55×** |
-| degree_quadratic | 0.79ms | 7.86ms  | **9.91×**  |
-| iterations_2     | 0.92ms | 8.95ms  | **9.76×**  |
-| iterations_3     | 1.08ms | 9.73ms  | **9.01×**  |
-| iterations_5     | 1.49ms | 12.73ms | **8.57×**  |
-| degree_linear    | 0.76ms | 5.86ms  | **7.76×**  |
-| iterations_0     | 0.75ms | 5.69ms  | **7.56×**  |
+| Name                           |      R       | Rust (Serial) | Rust (Parallel) |
+|--------------------------------|--------------|---------------|-----------------|
+| **Dimensions**                 |              |               |                 |
+| 1d_linear                      |    4.18ms    |     7.2x      |      8.1x       |
+| 2d_linear                      |   13.24ms    |     6.5x      |      10.1x      |
+| 3d_linear                      |   28.37ms    |     7.9x      |      13.6x      |
+| **Pathological**               |              |               |                 |
+| clustered                      |   19.70ms    |     15.7x     |      21.5x      |
+| constant_y                     |   13.61ms    |     13.6x     |      17.5x      |
+| extreme_outliers               |   23.55ms    |     10.3x     |      11.7x      |
+| high_noise                     |   34.96ms    |     19.9x     |      28.0x      |
+| **Polynomial Degree**          |              |               |                 |
+| degree_constant                |    8.50ms    |     10.0x     |      13.5x      |
+| degree_linear                  |   13.47ms    |     16.2x     |      21.4x      |
+| degree_quadratic               |   19.07ms    |     23.3x     |      29.7x      |
+| **Scalability**                |              |               |                 |
+| scale_1000                     |    1.09ms    |     4.3x      |      3.7x       |
+| scale_5000                     |    8.63ms    |     7.2x      |      8.2x       |
+| scale_10000                    |   28.68ms    |     10.4x     |      14.5x      |
+| **Real-world Scenarios**       |              |               |                 |
+| financial_1000                 |    1.11ms    |     4.8x      |      4.7x       |
+| financial_5000                 |    8.28ms    |     7.6x      |      9.2x       |
+| genomic_5000                   |    8.27ms    |     6.7x      |      7.5x       |
+| scientific_5000                |   11.23ms    |     6.8x      |      10.1x      |
+| **Parameter Sensitivity**      |              |               |                 |
+| fraction_0.67                  |   44.96ms    |     54.0x     |      54.1x      |
+| iterations_10                  |   23.31ms    |     10.9x     |      11.8x      |
+
+*Note: "Rust (Parallel)" corresponds to the optimized CPU backend using Rayon.*
+
+### Key Takeaways
+
+1. **Parallel Wins on Load**: For computationally intensive tasks (e.g., `3d_linear`, `high_noise`, `scientific_5000`, `scale_10000`), the parallel backend provides significant additional speedup over the serial implementation (e.g., **13.6x vs 7.9x** for 3D data).
+2. **Overhead on Small Data**: For very small or fast tasks (e.g., `scale_1000`, `financial_1000`), the serial implementation is comparable or slightly faster, indicating that thread management overhead is visible but minimal (often < 0.05ms difference).
+3. **Consistent Superiority**: Both Rust implementations consistently outperform R, usually by an order of magnitude.
+
+### Recommendation
+
+- **Default to Parallel**: The overhead for small datasets is negligible (microseconds), while the gains for larger or more complex datasets are substantial (doubling the speedup factor in some cases).
+- **Use Serial for Tiny Batches**: If processing millions of independent tiny datasets (< 1000 points) where calling `fit()` repeatedly, the serial backend might save thread pool overhead.
 
 Check [Benchmarks](https://github.com/thisisamirv/fastLoess/tree/bench/benchmarks) for detailed results and reproducible benchmarking code.
 
