@@ -1,63 +1,123 @@
-# Benchmark Interpretation (fastLoess)
+# Benchmark Results
 
 ## Summary
 
-The `fastLoess` crate demonstrates significant performance gains over R's optimized LOESS implementation. The benchmarks highlight that **Parallel Execution (Rayon)** provides a consistent advantage, with speedups generally ranging from **3x to 25x** compared to R.
+The Rust `loess-rs` crate demonstrates consistent performance improvements over R's `loess` across all tested scenarios. Median speedups range from **3.0x to 9.8x** across different categories, with peak speedups reaching over **21x** in specific configurations. No regressions were observed.
 
-## Consolidated Comparison
+## Category Comparison
 
-The table below shows speedups relative to the **baseline (R)**.
+| Category               | Matched | Median Speedup | Mean Speedup |
+|------------------------|---------|----------------|--------------|
+| **Polynomial Degrees** | 2       | **9.80x**      | 9.80x        |
+| **Iterations**         | 6       | **8.15x**      | 8.63x        |
+| **Pathological**       | 4       | **7.84x**      | 8.41x        |
+| **Fraction**           | 6       | **6.96x**      | 9.24x        |
+| **Dimensions**         | 3       | **4.76x**      | 4.99x        |
+| **Scalability**        | 2       | **3.78x**      | 3.78x        |
+| **Financial**          | 3       | **3.41x**      | 3.63x        |
+| **Genomic**            | 2       | **2.99x**      | 2.99x        |
+| **Scientific**         | 3       | **2.91x**      | 3.17x        |
 
-| Name                  |      R      |  Rust (CPU)*  | Rust (GPU) |
-|-----------------------|-------------|---------------|------------|
-| 1d_linear             |   2.25ms    |  [3.8-4.2x]¹  |     -      |
-| 2d_linear             |   6.66ms    |  [3.6-4.7x]¹  |     -      |
-| 3d_linear             |   13.17ms   |  [3.4-5.8x]¹  |     -      |
-| clustered             |   7.86ms    |  [6.3-7.8x]¹  |     -      |
-| constant_y            |   5.88ms    |  [5.9-7.4x]¹  |     -      |
-| degree_constant       |      -      |       -       |     -      |
-| degree_linear         |   5.86ms    |  [7.3-8.8x]¹  |     -      |
-| degree_quadratic      |   7.86ms    |  [9.7-11x]¹   |     -      |
-| extreme_outliers      |   15.11ms   |  [7.1-7.6x]¹  |     -      |
-| financial_1000        |   0.91ms    |  [3.8-3.3x]¹  |     -      |
-| financial_500         |   0.57ms    |  [4.1-3.1x]¹  |     -      |
-| financial_5000        |   4.39ms    |  [3.9-4.6x]¹  |     -      |
-| fraction_0.05         |   4.42ms    |  [3.1-3.7x]¹  |     -      |
-| fraction_0.1          |   4.29ms    |  [3.4-3.9x]¹  |     -      |
-| fraction_0.2          |   5.97ms    |  [5.1-6.0x]¹  |     -      |
-| fraction_0.3          |   8.69ms    |  [5.8-7.9x]¹  |     -      |
-| fraction_0.5          |   12.85ms   |   [10-13x]¹   |     -      |
-| fraction_0.67         |   21.63ms   |   [24-25x]¹   |     -      |
-| genomic_1000          |   0.80ms    |  [2.9-2.8x]¹  |     -      |
-| genomic_5000          |   4.23ms    |  [3.4-3.9x]¹  |     -      |
-| high_noise            |   15.86ms   |  [9.9-11x]¹   |     -      |
-| iterations_0          |   5.69ms    |  [7.1-8.2x]¹  |     -      |
-| iterations_1          |   8.44ms    |   [11-13x]¹   |     -      |
-| iterations_10         |   15.15ms   |  [7.1-7.9x]¹  |     -      |
-| iterations_2          |   8.95ms    |  [9.0-9.4x]¹  |     -      |
-| iterations_3          |   9.73ms    |  [8.4-10x]¹   |     -      |
-| iterations_5          |   12.73ms   |  [8.1-9.9x]¹  |     -      |
-| scale_1000            |   1.00ms    |  [3.5-3.5x]¹  |     -      |
-| scale_10000           |      -      |       -       |     -      |
-| scale_5000            |   4.91ms    |  [4.0-4.9x]¹  |     -      |
-| scientific_1000       |   1.12ms    |  [3.3-3.5x]¹  |     -      |
-| scientific_500        |   0.60ms    |  [3.6-2.5x]¹  |     -      |
-| scientific_5000       |   5.45ms    |  [3.5-5.1x]¹  |     -      |
+## Top 10 Rust Wins
 
-* **Rust (CPU)**: Shows range `Seq - Par` speedup vs R. E.g., `4-5x` means 4x speedup (Sequential) and 5x speedup (Parallel). Rank determined by Parallel speedup.
+| Benchmark        | Rust   | R       | Speedup    |
+|------------------|--------|---------|------------|
+| fraction_0.67    | 0.98ms | 21.63ms | **21.97x** |
+| fraction_0.5     | 1.07ms | 12.85ms | **11.98x** |
+| degree_quadratic | 0.68ms | 7.86ms  | **11.52x** |
+| iterations_1     | 0.75ms | 8.44ms  | **11.20x** |
+| high_noise       | 1.50ms | 15.86ms | **10.58x** |
+| iterations_2     | 0.95ms | 8.95ms  | **9.46x**  |
+| iterations_5     | 1.55ms | 12.73ms | **8.19x**  |
+| iterations_3     | 1.20ms | 9.73ms  | **8.11x**  |
+| degree_linear    | 0.73ms | 5.86ms  | **8.08x**  |
+| clustered        | 1.00ms | 7.86ms  | **7.87x**  |
 
-¹ Winner (Fastest implementation)
-² Runner-up (Second fastest implementation)
+## Regressions
 
-## Key Takeaways
+**None identified.** R was not faster than Rust in any of the matched benchmarks.
 
-1. **Consistent Superiority**: Rust (Parallel CPU) outperforms R in every single measured benchmark, often by a wide margin (5x - 10x typical, up to 25x for larger spans).
-2. **Fraction Sensitivity**: As the `fraction` (span) increases, the computational cost increases, but Rust handles this significantly better than R. At `fraction=0.67` (default), Rust is **~25x faster** than R.
-3. **Iteration Scalability**: Rust scales extremely well with robustness iterations. For normal workloads (1-3 iterations), it maintains an 8-10x lead. Even with 10 iterations (`iterations_10`), it holds a ~7.9x advantage.
-4. **Parallel vs Serial**: The benefit of parallelism becomes clear as problem size or complexity grows. In many cases (e.g., `genomic`, `scientific`), parallel execution offers a noticeable boost over the already fast sequential Rust implementation.
-5. **Robustness Overhead**: Rust's handling of robust re-weighting (iterative LOESS) is highly optimized, showing minimal degradation compared to non-robust (`iterations_0`) runs, whereas R sees a steeper cost.
+## Detailed Results
 
-## Recommendation
+### Dimensions
 
-* **Default**: Use **Rust CPU Parallel** for all standard LOESS tasks. It is uniformly faster than R.
-* **Large Data/High Span**: The performance gap widens significantly for larger bandwidths (`fraction > 0.5`), making Rust strongly recommended for smooth trend estimation on medium-to-large datasets.
+| Name      | Rust   | R       | Speedup |
+|-----------|--------|---------|---------|
+| 1d_linear | 0.50ms | 2.25ms  | 4.49x   |
+| 2d_linear | 1.40ms | 6.66ms  | 4.76x   |
+| 3d_linear | 2.30ms | 13.17ms | 5.73x   |
+
+### Financial
+
+| Name           | Rust   | R       | Speedup |
+|----------------|--------|---------|---------|
+| financial_1000 | 0.27ms | 0.91ms  | 3.41x   |
+| financial_500  | 0.19ms | 0.57ms  | 3.00x   |
+| financial_5000 | 0.98ms | 4.39ms  | 4.48x   |
+
+### Fraction
+
+| Name          | Rust   | R       | Speedup |
+|---------------|--------|---------|---------|
+| fraction_0.05 | 1.20ms | 4.42ms  | 3.67x   |
+| fraction_0.1  | 1.11ms | 4.29ms  | 3.88x   |
+| fraction_0.2  | 0.95ms | 5.97ms  | 6.28x   |
+| fraction_0.3  | 1.14ms | 8.69ms  | 7.64x   |
+| fraction_0.5  | 1.07ms | 12.85ms | 11.98x  |
+| fraction_0.67 | 0.98ms | 21.63ms | 21.97x  |
+
+### Genomic
+
+| Name         | Rust   | R      | Speedup |
+|--------------|--------|--------|---------|
+| genomic_1000 | 0.37ms | 0.80ms | 2.19x   |
+| genomic_5000 | 1.12ms | 4.23ms | 3.79x   |
+
+### Iterations
+
+| Name          | Rust   | R       | Speedup |
+|---------------|--------|---------|---------|
+| iterations_0  | 0.76ms | 5.69ms  | 7.48x   |
+| iterations_1  | 0.75ms | 8.44ms  | 11.20x  |
+| iterations_10 | 2.07ms | 15.15ms | 7.33x   |
+| iterations_2  | 0.95ms | 8.95ms  | 9.46x   |
+| iterations_3  | 1.20ms | 9.73ms  | 8.11x   |
+| iterations_5  | 1.55ms | 12.73ms | 8.19x   |
+
+### Pathological
+
+| Name             | Rust   | R       | Speedup |
+|------------------|--------|---------|---------|
+| clustered        | 1.00ms | 7.86ms  | 7.87x   |
+| constant_y       | 0.80ms | 5.88ms  | 7.38x   |
+| extreme_outliers | 1.94ms | 15.11ms | 7.80x   |
+| high_noise       | 1.50ms | 15.86ms | 10.58x  |
+
+### Polynomial Degrees
+
+| Name             | Rust   | R      | Speedup |
+|------------------|--------|--------|---------|
+| degree_linear    | 0.73ms | 5.86ms | 8.08x   |
+| degree_quadratic | 0.68ms | 7.86ms | 11.52x  |
+
+### Scalability
+
+| Name       | Rust   | R      | Speedup |
+|------------|--------|--------|---------|
+| scale_1000 | 0.32ms | 1.00ms | 3.12x   |
+| scale_5000 | 1.11ms | 4.91ms | 4.44x   |
+
+### Scientific
+
+| Name            | Rust   | R      | Speedup |
+|-----------------|--------|--------|---------|
+| scientific_1000 | 0.39ms | 1.12ms | 2.91x   |
+| scientific_500  | 0.24ms | 0.60ms | 2.54x   |
+| scientific_5000 | 1.34ms | 5.45ms | 4.06x   |
+
+## Notes
+
+- Both use identical scenarios
+- Rust crate: `loess-rs` + `fastLoess`
+- R: `loess`
+- Test date: 2026-01-04

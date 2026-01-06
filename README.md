@@ -1,10 +1,10 @@
-# FastLoess Validation & Benchmarking Workspace
+# Loess Validation & Benchmarking Workspace
 
-This workspace is dedicated to validating the correctness and benchmarking the performance of the [fastLoess](https://github.com/thisisamirv/fastLoess) Rust crate against the reference Python implementation (`statsmodels`).
+This workspace is dedicated to validating the correctness and benchmarking the performance of the [loess-rs](https://github.com/thisisamirv/loess-rs) Rust crate against the reference R implementation (`loess`).
 
-It builds the `fastLoess` crate from the `develop` branch (git dependency) to ensure the latest changes are tested.
+It builds the `loess-rs` crate from the `develop` branch (git dependency) to ensure the latest changes are tested.
 
-## Structure
+## structure
 
 - `benchmarks/`: Performance benchmarking suite.
 - `validation/`: Correctness validation suite.
@@ -22,21 +22,12 @@ cd benchmarks/fastLoess
 cargo bench
 
 # Run with CPU Serial backend (no parallelism)
-FASTLOESS_BACKEND=cpu_serial cargo bench
+FASTLOESS_BACKEND=serial cargo bench
 ```
 
 *Results are stored in `benchmarks/fastLoess/target/criterion/` with HTML reports.*
 
-### 2. Run R Benchmarks
-
-```bash
-cd benchmarks
-Rscript R/benchmark.R
-```
-
-*Output: `benchmarks/output/r_benchmark.json`*
-
-### 3. Convert Criterion Results to JSON
+### 2. Convert Criterion Results to JSON
 
 ```bash
 cd benchmarks
@@ -48,9 +39,18 @@ python3 convert_criterion.py
 - `benchmarks/output/rust_benchmark_cpu.json`
 - `benchmarks/output/rust_benchmark_cpu_serial.json`
 
+### 3. Run R Benchmarks
+
+```bash
+# from benchmarks directory
+Rscript R/benchmark.R
+```
+
+*Output: `benchmarks/output/r_benchmark.json`*
+
 ### 4. Compare Benchmark Results
 
-Generate a consolidated comparison report showing speedups (Seq-Par range for CPU) and regressions.
+Generate a comparison report showing speedups and regressions.
 
 ```bash
 cd benchmarks
@@ -66,20 +66,21 @@ Validation ensures the Rust implementation produces results identical (or accept
 ### 1. Run Rust Validation
 
 ```bash
-cd validation/fastLoess
+cd validation/loess-rs
 cargo run --release
 ```
 
 *Output: `validation/output/rust_validate.json`*
 
-### 2. Run Statsmodels Validation
+### 2. Run R Validation
 
 ```bash
-# from the root directory
-python3 validation/statsmodels/validate.py
+# from the validation directory
+cd validation
+Rscript R/validate.R
 ```
 
-*Output: `validation/output/statsmodels_validate.json`*
+*Output: `validation/output/r/*.json`*
 
 ### 3. Compare Validation Results
 
@@ -95,4 +96,5 @@ python3 compare_validation.py
 ## Requirements
 
 - **Rust**: Latest stable.
-- **Python**: 3.x with `numpy`, `scipy`, `statsmodels`, `pytest` installed.
+- **R**: Latest stable with standard packages (`stats`, `jsonlite`).
+- **Python**: 3.x with `numpy`, `scipy` (for comparison scripts).

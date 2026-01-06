@@ -6,7 +6,9 @@ Criterion stores results in:
 - target/criterion/<group>/<bench_id>/<param>/new/estimates.json (parameterized)
 - target/criterion/<group>/<bench_name>/new/estimates.json (non-parameterized)
 
-This script extracts timing data and writes it to benchmarks/output/rust_benchmark.json.
+This script extracts timing data and writes it to:
+- benchmarks/output/rust_benchmark_cpu.json (parallel)
+- benchmarks/output/rust_benchmark_cpu_serial.json (serial)
 
 Usage: python3 convert_criterion.py
 """
@@ -68,18 +70,17 @@ def find_criterion_results(criterion_dir: Path) -> Dict[str, List[dict]]:
             continue
         
         category = group_dir.name
+        
+        # Strip suffix for logical checking, but keep original category for grouping
+        clean_category = category
+        if category.endswith("_parallel"):
+            clean_category = category[:-9]
+        elif category.endswith("_serial"):
+            clean_category = category[:-7]
+
         if category not in results:
             results[category] = []
         
-        # Identify base category for naming logic
-        base_category = category
-        if base_category.endswith("_cpu_serial"):
-            base_category = base_category[:-11]
-        elif base_category.endswith("_cpu"):
-            base_category = base_category[:-4]
-        elif base_category.endswith("_gpu"):
-            base_category = base_category[:-4]
-
         for bench_dir in group_dir.iterdir():
             if not bench_dir.is_dir() or bench_dir.name == "report":
                 continue
@@ -87,21 +88,20 @@ def find_criterion_results(criterion_dir: Path) -> Dict[str, List[dict]]:
             bench_id = bench_dir.name
             
             # Check if this has 'new/' directly (non-parameterized)
-            # or has parameter subdirectories
             new_dir = bench_dir / "new"
             if new_dir.exists() and (new_dir / "estimates.json").exists():
-                # Non-parameterized benchmark (e.g., pathological/clustered)
+                # Non-parameterized
                 timing = parse_estimates(new_dir / "estimates.json")
                 if timing:
                     result = {
                         "name": bench_id,
-                        "size": 5000,  # Default size for pathological
+                        "size": 5000,
                         "iterations": 10,
                         **timing
                     }
                     results[category].append(result)
             else:
-                # Parameterized benchmark - look for param subdirectories
+                # Parameterized benchmark
                 for param_dir in bench_dir.iterdir():
                     if not param_dir.is_dir() or param_dir.name in ("report", "new", "base", "change"):
                         continue
@@ -118,25 +118,12 @@ def find_criterion_results(criterion_dir: Path) -> Dict[str, List[dict]]:
                             except ValueError:
                                 size = 0
                             
-                            # Create aligned name: category_param (e.g., scale_1000)
-                            # Match Python naming convention
-                            if base_category == "scalability":
+                            # Create aligned name using clean_category
+                            if clean_category == "scalability":
                                 name = f"scale_{param}"
-                            elif base_category == "financial":
-                                name = f"financial_{param}"
-                            elif base_category == "scientific":
-                                name = f"scientific_{param}"
-                            elif base_category == "genomic":
-                                name = f"genomic_{param}"
-                            elif base_category == "fraction":
-                                name = f"fraction_{param}"
-                            elif base_category == "iterations":
-                                name = f"iterations_{param}"
-                            elif base_category == "polynomial_degrees":
-                                # bench_id is "degree", param is "linear", etc.
-                                name = f"{bench_id}_{param}"
-                            elif base_category == "distance_metrics":
-                                # bench_id is "metric", param is "euclidean", etc.
+                            elif clean_category in ("financial", "scientific", "genomic", "fraction", "iterations"):
+                                name = f"{clean_category}_{param}"
+                            elif clean_category in ("polynomial_degrees", "distance_metrics"):
                                 name = f"{bench_id}_{param}"
                             else:
                                 name = f"{bench_id}_{param}"
@@ -171,24 +158,20 @@ def main():
         print("No criterion results found. Run 'cargo bench' first.")
         return 1
     
-    # Separate results into CPU, GPU, and CPU Serial
+    # Separate results into CPU (Parallel) and CPU Serial
     cpu_results = {}
-    gpu_results = {}
     cpu_serial_results = {}
     
     for category, benchmarks in results.items():
-        # Clean category name and determine backend
-        if category.endswith("_gpu"):
-            clean_category = category[:-4]
-            target_dict = gpu_results
-        elif category.endswith("_cpu_serial"):
-            clean_category = category[:-11]
+        # Determine backend from suffix and map to correct dict
+        if category.endswith("_serial"):
+            clean_category = category[:-7]
             target_dict = cpu_serial_results
-        elif category.endswith("_cpu"):
-            clean_category = category[:-4]
+        elif category.endswith("_parallel"):
+            clean_category = category[:-9]
             target_dict = cpu_results
         else:
-            # Fallback for benchmarks without suffix (likely CPU default)
+            # Fallback for benchmarks without known suffix -> treat as default (parallel/CPU)
             clean_category = category
             target_dict = cpu_results
             
@@ -215,16 +198,12 @@ def main():
 
     # Save Results
     if cpu_results:
-        print("\n--- CPU Results ---")
+        print("\n--- CPU (Parallel) Results ---")
         save_results(cpu_results, "rust_benchmark_cpu.json")
         
     if cpu_serial_results:
         print("\n--- CPU Serial Results ---")
         save_results(cpu_serial_results, "rust_benchmark_cpu_serial.json")
-        
-    if gpu_results:
-        print("\n--- GPU Results ---")
-        save_results(gpu_results, "rust_benchmark_gpu.json")
     
     return 0
 

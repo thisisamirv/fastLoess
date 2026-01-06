@@ -168,7 +168,7 @@ generate_3d_data <- function(size, seed = 42) {
 
 benchmark_scalability <- function(iterations = 10) {
   results <- list()
-  sizes <- c(1000, 5000)
+  sizes <- c(1000, 5000, 10000)
 
   for (size in sizes) {
     data <- generate_sine_data(size)
@@ -302,9 +302,9 @@ benchmark_polynomial_degrees <- function(iterations = 10) {
   data <- generate_sine_data(size)
 
   degrees <- list(
+    list(name = "constant", deg = 0),
     list(name = "linear", deg = 1),
     list(name = "quadratic", deg = 2)
-    # R loess doesn't support degree 0 in the same way, usually it's degree 1 or 2.
   )
 
   for (d in degrees) {
